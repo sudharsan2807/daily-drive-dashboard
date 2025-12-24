@@ -3,10 +3,11 @@ import { Task } from '@/types/task';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Clock, Trash2, Pencil, AlertTriangle, Target, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, Trash2, Pencil, AlertTriangle, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTaskTypeLabel, isTaskCompletedToday } from '@/lib/taskStorage';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface TaskCardProps {
   task: Task;
@@ -14,15 +15,26 @@ interface TaskCardProps {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
+  isDragging?: boolean;
 }
 
-export const TaskCard = ({ task, date, onToggle, onDelete, onEdit }: TaskCardProps) => {
-  const [showHowTo, setShowHowTo] = useState(false);
+export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, isDragging }: TaskCardProps) => {
+  const [showDescription, setShowDescription] = useState(false);
   const isCompleted = isTaskCompletedToday(task, date);
   const isCarried = !!task.carriedFrom;
-  const goalProgress = task.type === 'goal' && task.goalTarget 
-    ? ((task.goalCompleted || 0) / task.goalTarget) * 100 
-    : 0;
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: task.id, disabled: isCompleted });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   const getTaskClass = () => {
     if (isCarried) return 'task-carried';
@@ -45,15 +57,31 @@ export const TaskCard = ({ task, date, onToggle, onDelete, onEdit }: TaskCardPro
     }
   };
 
+  const hasDescription = task.description || (task.type === 'goal' && task.howToDo);
+  const descriptionContent = task.type === 'goal' ? task.howToDo : task.description;
+
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       className={cn(
         'group relative rounded-lg p-4 transition-all duration-200 hover:shadow-md animate-fade-in',
         getTaskClass(),
-        isCompleted && 'opacity-60'
+        isCompleted && 'opacity-60',
+        isDragging && 'opacity-50 shadow-lg'
       )}
     >
       <div className="flex items-start gap-3">
+        {!isCompleted && (
+          <button
+            className="mt-1 cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-5 w-5" />
+          </button>
+        )}
+        
         <Checkbox
           checked={isCompleted}
           onCheckedChange={() => onToggle(task.id)}
@@ -89,33 +117,18 @@ export const TaskCard = ({ task, date, onToggle, onDelete, onEdit }: TaskCardPro
             </div>
           )}
           
-          {task.type === 'goal' && task.goalTarget && (
-            <div className="mt-3 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <Target className="h-3.5 w-3.5" />
-                  Progress
-                </span>
-                <span className="font-medium">
-                  {task.goalCompleted || 0} / {task.goalTarget}
-                </span>
-              </div>
-              <Progress value={goalProgress} className="h-2" />
-            </div>
-          )}
-          
-          {task.type === 'goal' && task.howToDo && (
+          {hasDescription && (
             <div className="mt-2">
               <button
-                onClick={() => setShowHowTo(!showHowTo)}
+                onClick={() => setShowDescription(!showDescription)}
                 className="flex items-center gap-1 text-sm text-primary hover:underline"
               >
-                How to do?
-                {showHowTo ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                {task.type === 'goal' ? 'How to do?' : 'Description'}
+                {showDescription ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               </button>
-              {showHowTo && (
+              {showDescription && (
                 <p className="mt-2 text-sm text-muted-foreground bg-background/50 rounded p-2">
-                  {task.howToDo}
+                  {descriptionContent}
                 </p>
               )}
             </div>

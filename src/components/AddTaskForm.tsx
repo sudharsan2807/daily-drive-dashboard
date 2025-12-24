@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Plus, Loader2 } from 'lucide-react';
-import { addTask, getWeekdayName, getTodayISO } from '@/lib/taskStorage';
+import { addTask, getWeekdayName, getTodayISO, calculateDateGap } from '@/lib/taskStorage';
 import { toast } from 'sonner';
 
 const weekdays = [0, 1, 2, 3, 4, 5, 6];
@@ -16,10 +16,13 @@ const weekdays = [0, 1, 2, 3, 4, 5, 6];
 export const AddTaskForm = () => {
   const navigate = useNavigate();
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [type, setType] = useState<TaskType>('daily');
   const [time, setTime] = useState('');
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
   const [date, setDate] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [goalTarget, setGoalTarget] = useState('');
   const [howToDo, setHowToDo] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -47,15 +50,32 @@ export const AddTaskForm = () => {
       return;
     }
 
+    if (type === 'daily' && !fromDate) {
+      toast.error('Please select a start date');
+      return;
+    }
+
     setSubmitting(true);
+
+    // Calculate goal target from date range if both dates are provided
+    let calculatedGoalTarget = type === 'goal' ? parseInt(goalTarget) : undefined;
+    let taskType = type;
+    
+    // If daily task with date range, add to goal progress
+    if (type === 'daily' && fromDate && toDate) {
+      calculatedGoalTarget = calculateDateGap(fromDate, toDate);
+    }
     
     const result = await addTask({
       name: name.trim(),
-      type,
+      type: taskType,
+      description: description.trim() || undefined,
       time: time || undefined,
       weekdays: type === 'weekly' ? selectedWeekdays : undefined,
       date: type === 'particular' ? date : undefined,
-      goalTarget: type === 'goal' ? parseInt(goalTarget) : undefined,
+      fromDate: type === 'daily' ? fromDate : undefined,
+      toDate: type === 'daily' && toDate ? toDate : undefined,
+      goalTarget: calculatedGoalTarget,
       howToDo: type === 'goal' ? howToDo.trim() || undefined : undefined,
     });
 
@@ -109,6 +129,17 @@ export const AddTaskForm = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="description">Description (Optional)</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Add a description for this task..."
+                  rows={2}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="type">Task Type *</Label>
                 <Select value={type} onValueChange={(v) => setType(v as TaskType)}>
                   <SelectTrigger>
@@ -152,6 +183,38 @@ export const AddTaskForm = () => {
                   onChange={(e) => setTime(e.target.value)}
                 />
               </div>
+
+              {type === 'daily' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="fromDate">From Date *</Label>
+                      <Input
+                        id="fromDate"
+                        type="date"
+                        value={fromDate}
+                        onChange={(e) => setFromDate(e.target.value)}
+                        min={getTodayISO()}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="toDate">To Date (Optional)</Label>
+                      <Input
+                        id="toDate"
+                        type="date"
+                        value={toDate}
+                        onChange={(e) => setToDate(e.target.value)}
+                        min={fromDate || getTodayISO()}
+                      />
+                    </div>
+                  </div>
+                  {fromDate && toDate && (
+                    <p className="text-sm text-muted-foreground">
+                      Target: {calculateDateGap(fromDate, toDate)} days
+                    </p>
+                  )}
+                </div>
+              )}
 
               {type === 'weekly' && (
                 <div className="space-y-2">

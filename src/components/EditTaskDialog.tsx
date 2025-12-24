@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Save } from 'lucide-react';
-import { updateTask, getWeekdayName, getTodayISO } from '@/lib/taskStorage';
+import { updateTask, getWeekdayName, getTodayISO, calculateDateGap } from '@/lib/taskStorage';
 import { toast } from 'sonner';
 
 const weekdays = [0, 1, 2, 3, 4, 5, 6];
@@ -26,10 +26,13 @@ interface EditTaskDialogProps {
 
 export const EditTaskDialog = ({ task, open, onOpenChange, onTaskUpdated }: EditTaskDialogProps) => {
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [type, setType] = useState<TaskType>('daily');
   const [time, setTime] = useState('');
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
   const [date, setDate] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [goalTarget, setGoalTarget] = useState('');
   const [howToDo, setHowToDo] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -37,10 +40,13 @@ export const EditTaskDialog = ({ task, open, onOpenChange, onTaskUpdated }: Edit
   useEffect(() => {
     if (task) {
       setName(task.name);
+      setDescription(task.description || '');
       setType(task.type);
       setTime(task.time || '');
       setSelectedWeekdays(task.weekdays || []);
       setDate(task.date || '');
+      setFromDate(task.fromDate || '');
+      setToDate(task.toDate || '');
       setGoalTarget(task.goalTarget?.toString() || '');
       setHowToDo(task.howToDo || '');
     }
@@ -72,13 +78,23 @@ export const EditTaskDialog = ({ task, open, onOpenChange, onTaskUpdated }: Edit
 
     setSubmitting(true);
 
+    // Calculate goal target from date range if both dates are provided
+    let calculatedGoalTarget = type === 'goal' ? parseInt(goalTarget) : undefined;
+    
+    if (type === 'daily' && fromDate && toDate) {
+      calculatedGoalTarget = calculateDateGap(fromDate, toDate);
+    }
+
     const updates: Partial<Task> = {
       name: name.trim(),
       type,
+      description: description.trim() || undefined,
       time: time || undefined,
       weekdays: type === 'weekly' ? selectedWeekdays : undefined,
       date: type === 'particular' ? date : undefined,
-      goalTarget: type === 'goal' ? parseInt(goalTarget) : undefined,
+      fromDate: type === 'daily' ? fromDate : undefined,
+      toDate: type === 'daily' && toDate ? toDate : undefined,
+      goalTarget: calculatedGoalTarget,
       howToDo: type === 'goal' ? howToDo.trim() || undefined : undefined,
     };
 
@@ -115,6 +131,17 @@ export const EditTaskDialog = ({ task, open, onOpenChange, onTaskUpdated }: Edit
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter task name"
               className="text-base"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-description">Description (Optional)</Label>
+            <Textarea
+              id="edit-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Add a description for this task..."
+              rows={2}
             />
           </div>
 
@@ -162,6 +189,37 @@ export const EditTaskDialog = ({ task, open, onOpenChange, onTaskUpdated }: Edit
               onChange={(e) => setTime(e.target.value)}
             />
           </div>
+
+          {type === 'daily' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-fromDate">From Date</Label>
+                  <Input
+                    id="edit-fromDate"
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-toDate">To Date (Optional)</Label>
+                  <Input
+                    id="edit-toDate"
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    min={fromDate}
+                  />
+                </div>
+              </div>
+              {fromDate && toDate && (
+                <p className="text-sm text-muted-foreground">
+                  Target: {calculateDateGap(fromDate, toDate)} days
+                </p>
+              )}
+            </div>
+          )}
 
           {type === 'weekly' && (
             <div className="space-y-2">

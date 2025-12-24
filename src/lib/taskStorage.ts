@@ -19,14 +19,18 @@ const rowToTask = (row: any): Task => ({
   id: row.id,
   name: row.name,
   type: row.type as TaskType,
+  description: row.description || undefined,
   time: row.time || undefined,
   weekdays: row.weekdays || undefined,
   date: row.date || undefined,
+  fromDate: row.from_date || undefined,
+  toDate: row.to_date || undefined,
   goalTarget: row.goal_target || undefined,
   goalCompleted: row.goal_completed || undefined,
   howToDo: row.how_to_do || undefined,
   completedDates: row.completed_dates || [],
   createdAt: row.created_at?.split('T')[0] || getTodayISO(),
+  sortOrder: row.sort_order || 0,
 });
 
 // Fetch all tasks from Supabase
@@ -34,6 +38,7 @@ export const fetchTasks = async (): Promise<Task[]> => {
   const { data, error } = await supabase
     .from('tasks')
     .select('*')
+    .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -45,19 +50,32 @@ export const fetchTasks = async (): Promise<Task[]> => {
 };
 
 // Add a new task
-export const addTask = async (task: Omit<Task, 'id' | 'completedDates' | 'createdAt'>): Promise<Task | null> => {
+export const addTask = async (task: Omit<Task, 'id' | 'completedDates' | 'createdAt' | 'sortOrder'>): Promise<Task | null> => {
+  // Get the max sort_order to add new task at the end
+  const { data: maxData } = await supabase
+    .from('tasks')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1);
+  
+  const maxSortOrder = maxData && maxData.length > 0 ? (maxData[0].sort_order || 0) : 0;
+  
   const { data, error } = await supabase
     .from('tasks')
     .insert({
       name: task.name,
       type: task.type,
+      description: task.description || null,
       time: task.time || null,
       weekdays: task.weekdays || null,
       date: task.date || null,
+      from_date: task.fromDate || null,
+      to_date: task.toDate || null,
       goal_target: task.goalTarget || null,
       goal_completed: task.type === 'goal' ? 0 : null,
       how_to_do: task.howToDo || null,
       completed_dates: [],
+      sort_order: maxSortOrder + 1,
     })
     .select()
     .single();
@@ -76,13 +94,17 @@ export const updateTask = async (id: string, updates: Partial<Task>): Promise<vo
   
   if (updates.name !== undefined) dbUpdates.name = updates.name;
   if (updates.type !== undefined) dbUpdates.type = updates.type;
+  if (updates.description !== undefined) dbUpdates.description = updates.description;
   if (updates.time !== undefined) dbUpdates.time = updates.time;
   if (updates.weekdays !== undefined) dbUpdates.weekdays = updates.weekdays;
   if (updates.date !== undefined) dbUpdates.date = updates.date;
+  if (updates.fromDate !== undefined) dbUpdates.from_date = updates.fromDate;
+  if (updates.toDate !== undefined) dbUpdates.to_date = updates.toDate;
   if (updates.goalTarget !== undefined) dbUpdates.goal_target = updates.goalTarget;
   if (updates.goalCompleted !== undefined) dbUpdates.goal_completed = updates.goalCompleted;
   if (updates.howToDo !== undefined) dbUpdates.how_to_do = updates.howToDo;
   if (updates.completedDates !== undefined) dbUpdates.completed_dates = updates.completedDates;
+  if (updates.sortOrder !== undefined) dbUpdates.sort_order = updates.sortOrder;
 
   const { error } = await supabase
     .from('tasks')
@@ -92,6 +114,29 @@ export const updateTask = async (id: string, updates: Partial<Task>): Promise<vo
   if (error) {
     console.error('Error updating task:', error);
   }
+};
+
+// Update sort order for multiple tasks
+export const updateTasksOrder = async (taskOrders: { id: string; sortOrder: number }[]): Promise<void> => {
+  for (const { id, sortOrder } of taskOrders) {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ sort_order: sortOrder })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating task order:', error);
+    }
+  }
+};
+
+// Calculate date gap in days
+export const calculateDateGap = (fromDate: string, toDate: string): number => {
+  const from = new Date(fromDate);
+  const to = new Date(toDate);
+  const diffTime = Math.abs(to.getTime() - from.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays + 1; // Include both start and end dates
 };
 
 // Delete a task

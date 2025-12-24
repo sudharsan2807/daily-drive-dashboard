@@ -19,12 +19,16 @@ export type Database = {
           completed_dates: string[] | null
           created_at: string
           date: string | null
+          description: string | null
+          from_date: string | null
           goal_completed: number | null
           goal_target: number | null
           how_to_do: string | null
           id: string
           name: string
+          sort_order: number | null
           time: string | null
+          to_date: string | null
           type: string
           updated_at: string
           user_id: string | null
@@ -34,12 +38,16 @@ export type Database = {
           completed_dates?: string[] | null
           created_at?: string
           date?: string | null
+          description?: string | null
+          from_date?: string | null
           goal_completed?: number | null
           goal_target?: number | null
           how_to_do?: string | null
           id?: string
           name: string
+          sort_order?: number | null
           time?: string | null
+          to_date?: string | null
           type: string
           updated_at?: string
           user_id?: string | null
@@ -49,12 +57,16 @@ export type Database = {
           completed_dates?: string[] | null
           created_at?: string
           date?: string | null
+          description?: string | null
+          from_date?: string | null
           goal_completed?: number | null
           goal_target?: number | null
           how_to_do?: string | null
           id?: string
           name?: string
+          sort_order?: number | null
           time?: string | null
+          to_date?: string | null
           type?: string
           updated_at?: string
           user_id?: string | null

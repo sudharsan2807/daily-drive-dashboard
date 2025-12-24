@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Task } from '@/types/task';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TaskCard } from '@/components/TaskCard';
+import { SortableTaskList } from '@/components/SortableTaskList';
 import { AnalysisReport } from '@/components/AnalysisReport';
 import { TimelineView } from '@/components/TimelineView';
 import { GoalProgress } from '@/components/GoalProgress';
@@ -67,8 +67,14 @@ const Index = () => {
     setAllTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
   };
 
-  const regularTasks = tasks.filter(t => t.type !== 'goal');
-  const goalTasks = tasks.filter(t => t.type === 'goal');
+  const handleReorder = useCallback((reorderedTasks: Task[]) => {
+    setTasks(reorderedTasks);
+    setAllTasks(prev => {
+      const todayTaskIds = new Set(reorderedTasks.map(t => t.id));
+      const otherTasks = prev.filter(t => !todayTaskIds.has(t.id));
+      return [...reorderedTasks, ...otherTasks];
+    });
+  }, []);
 
   if (loading) {
     return (
@@ -107,18 +113,18 @@ const Index = () => {
         {/* Analysis Report */}
         <AnalysisReport tasks={tasks} date={today} />
 
-        {/* Today's Tasks */}
+        {/* Today's Tasks - Combined */}
         <Card className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
               📅 Today's Tasks
               <span className="text-sm font-normal text-muted-foreground">
-                ({regularTasks.length} tasks)
+                ({tasks.length} tasks)
               </span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {regularTasks.length === 0 ? (
+          <CardContent>
+            {tasks.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <ListChecks className="h-12 w-12 mx-auto mb-3 opacity-30" />
                 <p>No tasks for today</p>
@@ -131,45 +137,17 @@ const Index = () => {
                 </Button>
               </div>
             ) : (
-              regularTasks.map(task => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  date={today}
-                  onToggle={handleToggle}
-                  onDelete={handleDelete}
-                  onEdit={handleEdit}
-                />
-              ))
+              <SortableTaskList
+                tasks={tasks}
+                date={today}
+                onToggle={handleToggle}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+                onReorder={handleReorder}
+              />
             )}
           </CardContent>
         </Card>
-
-        {/* Goal Tasks */}
-        {goalTasks.length > 0 && (
-          <Card className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                🎯 Goal Tasks
-                <span className="text-sm font-normal text-muted-foreground">
-                  ({goalTasks.length} goals)
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {goalTasks.map(task => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  date={today}
-                  onToggle={handleToggle}
-                  onDelete={handleDelete}
-                  onEdit={handleEdit}
-                />
-              ))}
-            </CardContent>
-          </Card>
-        )}
 
         {/* Timeline View */}
         <TimelineView tasks={tasks} date={today} />
