@@ -7,14 +7,14 @@ import { TaskCard } from '@/components/TaskCard';
 import { AnalysisReport } from '@/components/AnalysisReport';
 import { TimelineView } from '@/components/TimelineView';
 import { GoalProgress } from '@/components/GoalProgress';
-import { Plus, Calendar, ListChecks } from 'lucide-react';
+import { Plus, Calendar, ListChecks, Loader2 } from 'lucide-react';
 import { 
-  getTasksForDate, 
+  fetchTasks,
+  filterTasksForDate,
   getTodayISO, 
   formatDate, 
   toggleTaskCompletion, 
   deleteTask,
-  getTaskStore 
 } from '@/lib/taskStorage';
 import { toast } from 'sonner';
 
@@ -22,32 +22,48 @@ const Index = () => {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
   const today = getTodayISO();
 
   useEffect(() => {
     loadTasks();
   }, []);
 
-  const loadTasks = () => {
-    const todayTasks = getTasksForDate(today);
-    const store = getTaskStore();
+  const loadTasks = async () => {
+    setLoading(true);
+    const all = await fetchTasks();
+    const todayTasks = filterTasksForDate(all, today);
     setTasks(todayTasks);
-    setAllTasks(store.tasks);
+    setAllTasks(all);
+    setLoading(false);
   };
 
-  const handleToggle = (id: string) => {
-    toggleTaskCompletion(id, today);
-    loadTasks();
+  const handleToggle = async (id: string) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    
+    const updatedTask = await toggleTaskCompletion(task, today);
+    setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
+    setAllTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
   };
 
-  const handleDelete = (id: string) => {
-    deleteTask(id);
-    loadTasks();
+  const handleDelete = async (id: string) => {
+    await deleteTask(id);
+    setTasks(prev => prev.filter(t => t.id !== id));
+    setAllTasks(prev => prev.filter(t => t.id !== id));
     toast.success('Task deleted');
   };
 
   const regularTasks = tasks.filter(t => t.type !== 'goal');
   const goalTasks = tasks.filter(t => t.type === 'goal');
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

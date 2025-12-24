@@ -14,7 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      tasks: {
+        Row: {
+          completed_dates: string[] | null
+          created_at: string
+          date: string | null
+          goal_completed: number | null
+          goal_target: number | null
+          how_to_do: string | null
+          id: string
+          name: string
+          time: string | null
+          type: string
+          updated_at: string
+          user_id: string | null
+          weekdays: number[] | null
+        }
+        Insert: {
+          completed_dates?: string[] | null
+          created_at?: string
+          date?: string | null
+          goal_completed?: number | null
+          goal_target?: number | null
+          how_to_do?: string | null
+          id?: string
+          name: string
+          time?: string | null
+          type: string
+          updated_at?: string
+          user_id?: string | null
+          weekdays?: number[] | null
+        }
+        Update: {
+          completed_dates?: string[] | null
+          created_at?: string
+          date?: string | null
+          goal_completed?: number | null
+          goal_target?: number | null
+          how_to_do?: string | null
+          id?: string
+          name?: string
+          time?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string | null
+          weekdays?: number[] | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
