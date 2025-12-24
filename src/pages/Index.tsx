@@ -7,6 +7,7 @@ import { TaskCard } from '@/components/TaskCard';
 import { AnalysisReport } from '@/components/AnalysisReport';
 import { TimelineView } from '@/components/TimelineView';
 import { GoalProgress } from '@/components/GoalProgress';
+import { EditTaskDialog } from '@/components/EditTaskDialog';
 import { Plus, Calendar, ListChecks, Loader2 } from 'lucide-react';
 import { 
   fetchTasks,
@@ -23,6 +24,8 @@ const Index = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const today = getTodayISO();
 
   useEffect(() => {
@@ -52,6 +55,16 @@ const Index = () => {
     setTasks(prev => prev.filter(t => t.id !== id));
     setAllTasks(prev => prev.filter(t => t.id !== id));
     toast.success('Task deleted');
+  };
+
+  const handleEdit = (task: Task) => {
+    setEditingTask(task);
+    setEditDialogOpen(true);
+  };
+
+  const handleTaskUpdated = (updatedTask: Task) => {
+    setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+    setAllTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
   };
 
   const regularTasks = tasks.filter(t => t.type !== 'goal');
@@ -125,6 +138,7 @@ const Index = () => {
                   date={today}
                   onToggle={handleToggle}
                   onDelete={handleDelete}
+                  onEdit={handleEdit}
                 />
               ))
             )}
@@ -150,6 +164,7 @@ const Index = () => {
                   date={today}
                   onToggle={handleToggle}
                   onDelete={handleDelete}
+                  onEdit={handleEdit}
                 />
               ))}
             </CardContent>
@@ -171,6 +186,14 @@ const Index = () => {
       >
         <Plus className="h-6 w-6" />
       </Button>
+
+      {/* Edit Task Dialog */}
+      <EditTaskDialog
+        task={editingTask}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onTaskUpdated={handleTaskUpdated}
+      />
     </div>
   );
 };
