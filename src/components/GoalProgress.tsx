@@ -1,8 +1,7 @@
 import { Task } from '@/types/task';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Target, Trophy, Flame } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Trophy, Flame, Calendar } from 'lucide-react';
 import { isGoalComplete } from '@/lib/taskStorage';
 
 interface GoalProgressProps {
@@ -10,14 +9,28 @@ interface GoalProgressProps {
 }
 
 export const GoalProgress = ({ tasks }: GoalProgressProps) => {
+  // Include goal tasks and daily tasks with date range
   const goalTasks = tasks.filter(t => t.type === 'goal');
+  const dailyWithDateRange = tasks.filter(t => 
+    t.type === 'daily' && t.fromDate && t.toDate && t.goalTarget
+  );
   
-  if (goalTasks.length === 0) {
+  const allProgressTasks = [...goalTasks, ...dailyWithDateRange];
+  
+  if (allProgressTasks.length === 0) {
     return null;
   }
 
   const completedGoals = goalTasks.filter(t => isGoalComplete(t));
   const activeGoals = goalTasks.filter(t => !isGoalComplete(t));
+  
+  // For daily tasks with date range, check if completed based on goal progress
+  const activeDailyGoals = dailyWithDateRange.filter(t => 
+    (t.goalCompleted || 0) < (t.goalTarget || 0)
+  );
+  const completedDailyGoals = dailyWithDateRange.filter(t => 
+    (t.goalCompleted || 0) >= (t.goalTarget || 0)
+  );
 
   return (
     <Card className="animate-slide-up">
@@ -27,7 +40,7 @@ export const GoalProgress = ({ tasks }: GoalProgressProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {activeGoals.length > 0 && (
+        {(activeGoals.length > 0 || activeDailyGoals.length > 0) && (
           <div className="space-y-3">
             <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Flame className="h-4 w-4 text-task-particular" />
@@ -54,10 +67,39 @@ export const GoalProgress = ({ tasks }: GoalProgressProps) => {
                 </div>
               );
             })}
+            {activeDailyGoals.map((task, index) => {
+              const progress = task.goalTarget 
+                ? ((task.goalCompleted || 0) / task.goalTarget) * 100 
+                : 0;
+              
+              return (
+                <div
+                  key={task.id}
+                  className="p-3 rounded-lg bg-task-daily-bg animate-fade-in"
+                  style={{ animationDelay: `${(activeGoals.length + index) * 0.1}s` }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-task-daily" />
+                      <span className="font-medium">{task.name}</span>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      {task.goalCompleted || 0} / {task.goalTarget} days
+                    </span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                  {task.fromDate && task.toDate && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {task.fromDate} → {task.toDate}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
         
-        {completedGoals.length > 0 && (
+        {(completedGoals.length > 0 || completedDailyGoals.length > 0) && (
           <div className="space-y-3">
             <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Trophy className="h-4 w-4 text-task-daily" />
@@ -71,6 +113,16 @@ export const GoalProgress = ({ tasks }: GoalProgressProps) => {
               >
                 <Trophy className="h-5 w-5 text-task-daily" />
                 <span className="font-medium line-through opacity-75">{goal.name}</span>
+              </div>
+            ))}
+            {completedDailyGoals.map((task, index) => (
+              <div
+                key={task.id}
+                className="p-3 rounded-lg bg-task-daily-bg flex items-center gap-2 animate-fade-in"
+                style={{ animationDelay: `${(completedGoals.length + index) * 0.1}s` }}
+              >
+                <Trophy className="h-5 w-5 text-task-daily" />
+                <span className="font-medium line-through opacity-75">{task.name}</span>
               </div>
             ))}
           </div>
