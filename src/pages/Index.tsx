@@ -8,6 +8,7 @@ import { AnalysisReport } from '@/components/AnalysisReport';
 import { TimelineView } from '@/components/TimelineView';
 import { GoalProgress } from '@/components/GoalProgress';
 import { EditTaskDialog } from '@/components/EditTaskDialog';
+import { UserMenu } from '@/components/UserMenu';
 import { Plus, Calendar, ListChecks, Loader2 } from 'lucide-react';
 import { 
   fetchTasks,
@@ -104,6 +105,7 @@ const Index = () => {
               <Plus className="h-4 w-4 mr-2" />
               Add Task
             </Button>
+            <UserMenu />
           </div>
         </div>
       </header>
