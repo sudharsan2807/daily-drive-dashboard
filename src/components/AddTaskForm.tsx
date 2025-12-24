@@ -50,10 +50,6 @@ export const AddTaskForm = () => {
       return;
     }
 
-    if (type === 'daily' && !fromDate) {
-      toast.error('Please select a start date');
-      return;
-    }
 
     setSubmitting(true);
 
@@ -61,9 +57,12 @@ export const AddTaskForm = () => {
     let calculatedGoalTarget = type === 'goal' ? parseInt(goalTarget) : undefined;
     let taskType = type;
     
+    // Use today's date as default if fromDate not entered for daily tasks
+    const effectiveFromDate = type === 'daily' ? (fromDate || getTodayISO()) : undefined;
+    
     // If daily task with date range, add to goal progress
-    if (type === 'daily' && fromDate && toDate) {
-      calculatedGoalTarget = calculateDateGap(fromDate, toDate);
+    if (type === 'daily' && effectiveFromDate && toDate) {
+      calculatedGoalTarget = calculateDateGap(effectiveFromDate, toDate);
     }
     
     const result = await addTask({
@@ -73,7 +72,7 @@ export const AddTaskForm = () => {
       time: time || undefined,
       weekdays: type === 'weekly' ? selectedWeekdays : undefined,
       date: type === 'particular' ? date : undefined,
-      fromDate: type === 'daily' ? fromDate : undefined,
+      fromDate: effectiveFromDate,
       toDate: type === 'daily' && toDate ? toDate : undefined,
       goalTarget: calculatedGoalTarget,
       howToDo: type === 'goal' ? howToDo.trim() || undefined : undefined,
@@ -188,14 +187,15 @@ export const AddTaskForm = () => {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="fromDate">From Date *</Label>
+                      <Label htmlFor="fromDate">From Date (Optional)</Label>
                       <Input
                         id="fromDate"
                         type="date"
                         value={fromDate}
                         onChange={(e) => setFromDate(e.target.value)}
-                        min={getTodayISO()}
+                        placeholder={getTodayISO()}
                       />
+                      <p className="text-xs text-muted-foreground">Defaults to today</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="toDate">To Date (Optional)</Label>
@@ -208,9 +208,9 @@ export const AddTaskForm = () => {
                       />
                     </div>
                   </div>
-                  {fromDate && toDate && (
+                  {(fromDate || toDate) && toDate && (
                     <p className="text-sm text-muted-foreground">
-                      Target: {calculateDateGap(fromDate, toDate)} days
+                      Target: {calculateDateGap(fromDate || getTodayISO(), toDate)} days
                     </p>
                   )}
                 </div>
