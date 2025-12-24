@@ -51,13 +51,6 @@ export const fetchTasks = async (): Promise<Task[]> => {
 
 // Add a new task
 export const addTask = async (task: Omit<Task, 'id' | 'completedDates' | 'createdAt' | 'sortOrder'>): Promise<Task | null> => {
-  // Get current user
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    console.error('No authenticated user');
-    return null;
-  }
-
   // Get the max sort_order to add new task at the end
   const { data: maxData } = await supabase
     .from('tasks')
@@ -70,7 +63,6 @@ export const addTask = async (task: Omit<Task, 'id' | 'completedDates' | 'create
   const { data, error } = await supabase
     .from('tasks')
     .insert({
-      user_id: user.id,
       name: task.name,
       type: task.type,
       description: task.description || null,
