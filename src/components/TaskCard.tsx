@@ -4,18 +4,19 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Clock, Trash2, AlertTriangle, Target, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, Trash2, Pencil, AlertTriangle, Target, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getTaskTypeLabel, isTaskCompletedToday, isGoalComplete } from '@/lib/taskStorage';
+import { getTaskTypeLabel, isTaskCompletedToday } from '@/lib/taskStorage';
 
 interface TaskCardProps {
   task: Task;
   date: string;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit: (task: Task) => void;
 }
 
-export const TaskCard = ({ task, date, onToggle, onDelete }: TaskCardProps) => {
+export const TaskCard = ({ task, date, onToggle, onDelete, onEdit }: TaskCardProps) => {
   const [showHowTo, setShowHowTo] = useState(false);
   const isCompleted = isTaskCompletedToday(task, date);
   const isCarried = !!task.carriedFrom;
@@ -121,14 +122,24 @@ export const TaskCard = ({ task, date, onToggle, onDelete }: TaskCardProps) => {
           )}
         </div>
         
-        <Button
-          variant="ghost"
-          size="icon"
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-          onClick={() => onDelete(task.id)}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-primary"
+            onClick={() => onEdit(task)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(task.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
