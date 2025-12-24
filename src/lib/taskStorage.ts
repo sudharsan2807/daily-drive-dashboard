@@ -1,10 +1,5 @@
-import { Task, TaskStore, TaskType } from '@/types/task';
-
-const STORAGE_KEY = 'daily-routine-tasks';
-
-export const generateId = (): string => {
-  return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-};
+import { Task, TaskType } from '@/types/task';
+import { supabase } from '@/integrations/supabase/client';
 
 export const getTodayISO = (): string => {
   return new Date().toISOString().split('T')[0];
@@ -19,64 +14,132 @@ export const formatDate = (date: Date): string => {
   });
 };
 
-export const getTaskStore = (): TaskStore => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    return JSON.parse(stored);
+// Convert database row to Task type
+const rowToTask = (row: any): Task => ({
+  id: row.id,
+  name: row.name,
+  type: row.type as TaskType,
+  time: row.time || undefined,
+  weekdays: row.weekdays || undefined,
+  date: row.date || undefined,
+  goalTarget: row.goal_target || undefined,
+  goalCompleted: row.goal_completed || undefined,
+  howToDo: row.how_to_do || undefined,
+  completedDates: row.completed_dates || [],
+  createdAt: row.created_at?.split('T')[0] || getTodayISO(),
+});
+
+// Fetch all tasks from Supabase
+export const fetchTasks = async (): Promise<Task[]> => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching tasks:', error);
+    return [];
   }
-  return { tasks: [], lastCleanup: getTodayISO() };
+
+  return (data || []).map(rowToTask);
 };
 
-export const saveTaskStore = (store: TaskStore): void => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+// Add a new task
+export const addTask = async (task: Omit<Task, 'id' | 'completedDates' | 'createdAt'>): Promise<Task | null> => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert({
+      name: task.name,
+      type: task.type,
+      time: task.time || null,
+      weekdays: task.weekdays || null,
+      date: task.date || null,
+      goal_target: task.goalTarget || null,
+      goal_completed: task.type === 'goal' ? 0 : null,
+      how_to_do: task.howToDo || null,
+      completed_dates: [],
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding task:', error);
+    return null;
+  }
+
+  return rowToTask(data);
 };
 
-export const addTask = (task: Omit<Task, 'id' | 'completedDates' | 'createdAt'>): Task => {
-  const store = getTaskStore();
-  const newTask: Task = {
-    ...task,
-    id: generateId(),
-    completedDates: [],
-    createdAt: getTodayISO(),
-    goalCompleted: task.type === 'goal' ? 0 : undefined,
-  };
-  store.tasks.push(newTask);
-  saveTaskStore(store);
-  return newTask;
-};
+// Update a task
+export const updateTask = async (id: string, updates: Partial<Task>): Promise<void> => {
+  const dbUpdates: any = {};
+  
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.type !== undefined) dbUpdates.type = updates.type;
+  if (updates.time !== undefined) dbUpdates.time = updates.time;
+  if (updates.weekdays !== undefined) dbUpdates.weekdays = updates.weekdays;
+  if (updates.date !== undefined) dbUpdates.date = updates.date;
+  if (updates.goalTarget !== undefined) dbUpdates.goal_target = updates.goalTarget;
+  if (updates.goalCompleted !== undefined) dbUpdates.goal_completed = updates.goalCompleted;
+  if (updates.howToDo !== undefined) dbUpdates.how_to_do = updates.howToDo;
+  if (updates.completedDates !== undefined) dbUpdates.completed_dates = updates.completedDates;
 
-export const updateTask = (id: string, updates: Partial<Task>): void => {
-  const store = getTaskStore();
-  const index = store.tasks.findIndex(t => t.id === id);
-  if (index !== -1) {
-    store.tasks[index] = { ...store.tasks[index], ...updates };
-    saveTaskStore(store);
+  const { error } = await supabase
+    .from('tasks')
+    .update(dbUpdates)
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating task:', error);
   }
 };
 
-export const deleteTask = (id: string): void => {
-  const store = getTaskStore();
-  store.tasks = store.tasks.filter(t => t.id !== id);
-  saveTaskStore(store);
+// Delete a task
+export const deleteTask = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting task:', error);
+  }
 };
 
-export const toggleTaskCompletion = (id: string, date: string): void => {
-  const store = getTaskStore();
-  const task = store.tasks.find(t => t.id === id);
-  if (task) {
-    if (task.completedDates.includes(date)) {
-      task.completedDates = task.completedDates.filter(d => d !== date);
-      if (task.type === 'goal' && task.goalCompleted !== undefined && task.goalCompleted > 0) {
-        task.goalCompleted--;
-      }
-    } else {
-      task.completedDates.push(date);
-      if (task.type === 'goal') {
-        task.goalCompleted = (task.goalCompleted || 0) + 1;
-      }
+// Toggle task completion for a specific date
+export const toggleTaskCompletion = async (task: Task, date: string): Promise<Task> => {
+  let newCompletedDates = [...task.completedDates];
+  let newGoalCompleted = task.goalCompleted;
+
+  if (newCompletedDates.includes(date)) {
+    newCompletedDates = newCompletedDates.filter(d => d !== date);
+    if (task.type === 'goal' && newGoalCompleted !== undefined && newGoalCompleted > 0) {
+      newGoalCompleted--;
     }
-    saveTaskStore(store);
+  } else {
+    newCompletedDates.push(date);
+    if (task.type === 'goal') {
+      newGoalCompleted = (newGoalCompleted || 0) + 1;
+    }
   }
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({
+      completed_dates: newCompletedDates,
+      goal_completed: newGoalCompleted,
+    })
+    .eq('id', task.id);
+
+  if (error) {
+    console.error('Error toggling task completion:', error);
+  }
+
+  return {
+    ...task,
+    completedDates: newCompletedDates,
+    goalCompleted: newGoalCompleted,
+  };
 };
 
 export const isTaskCompletedToday = (task: Task, date: string): boolean => {
@@ -88,12 +151,11 @@ export const isGoalComplete = (task: Task): boolean => {
   return (task.goalCompleted || 0) >= (task.goalTarget || 0);
 };
 
-export const getTasksForDate = (date: string): Task[] => {
-  const store = getTaskStore();
+// Filter tasks for a specific date
+export const filterTasksForDate = (tasks: Task[], date: string): Task[] => {
   const dayOfWeek = new Date(date).getDay();
-  const today = getTodayISO();
 
-  return store.tasks.filter(task => {
+  return tasks.filter(task => {
     // Skip completed goals
     if (task.type === 'goal' && isGoalComplete(task)) {
       return false;

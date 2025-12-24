@@ -7,8 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, Loader2 } from 'lucide-react';
 import { addTask, getWeekdayName, getTodayISO } from '@/lib/taskStorage';
 import { toast } from 'sonner';
 
@@ -23,8 +22,9 @@ export const AddTaskForm = () => {
   const [date, setDate] = useState('');
   const [goalTarget, setGoalTarget] = useState('');
   const [howToDo, setHowToDo] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim()) {
@@ -47,7 +47,9 @@ export const AddTaskForm = () => {
       return;
     }
 
-    addTask({
+    setSubmitting(true);
+    
+    const result = await addTask({
       name: name.trim(),
       type,
       time: time || undefined,
@@ -57,8 +59,13 @@ export const AddTaskForm = () => {
       howToDo: type === 'goal' ? howToDo.trim() || undefined : undefined,
     });
 
-    toast.success('Task added successfully!');
-    navigate('/');
+    if (result) {
+      toast.success('Task added successfully!');
+      navigate('/');
+    } else {
+      toast.error('Failed to add task');
+      setSubmitting(false);
+    }
   };
 
   const toggleWeekday = (day: number) => {
@@ -207,9 +214,13 @@ export const AddTaskForm = () => {
                 </>
               )}
 
-              <Button type="submit" className="w-full" size="lg">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Task
+              <Button type="submit" className="w-full" size="lg" disabled={submitting}>
+                {submitting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                {submitting ? 'Adding...' : 'Add Task'}
               </Button>
             </form>
           </CardContent>
