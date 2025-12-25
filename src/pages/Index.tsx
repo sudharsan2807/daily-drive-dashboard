@@ -12,7 +12,7 @@ import { EditTaskDialog } from '@/components/EditTaskDialog';
 import { DateSwitcher } from '@/components/DateSwitcher';
 import { FloatingTasksBlock } from '@/components/FloatingTasksBlock';
 import { CompletedTasksBlock } from '@/components/CompletedTasksBlock';
-import { Plus, ListChecks, Loader2, History } from 'lucide-react';
+import { Plus, ListChecks, Loader2, History, Bell } from 'lucide-react';
 import { 
   fetchTasks,
   filterTasksForDate,
@@ -140,6 +140,9 @@ const Index = () => {
               <span className="text-xs text-muted-foreground ml-8">sudharsan</span>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={() => navigate('/add?type=notify')} title="Add Notify Task">
+                <Bell className="h-4 w-4" />
+              </Button>
               <Button variant="outline" size="icon" onClick={() => navigate('/history')}>
                 <History className="h-4 w-4" />
               </Button>

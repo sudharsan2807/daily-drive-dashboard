@@ -238,6 +238,10 @@ export const filterTasksForDate = (tasks: Task[], date: string): Task[] => {
         return task.date === date;
       case 'goal':
         return true;
+      case 'notify':
+        // Show on specific date if set, otherwise show every day
+        if (task.date) return task.date === date;
+        return true;
       default:
         return false;
     }
@@ -264,6 +268,7 @@ export const getTaskTypeLabel = (type: TaskType): string => {
     particular: 'Specific Day',
     goal: 'Goal',
     floating: 'Floating',
+    notify: 'Notify',
   };
   return labels[type];
 };

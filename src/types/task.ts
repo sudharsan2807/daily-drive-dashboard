@@ -1,4 +1,4 @@
-export type TaskType = 'daily' | 'weekly' | 'particular' | 'goal' | 'floating';
+export type TaskType = 'daily' | 'weekly' | 'particular' | 'goal' | 'floating' | 'notify';
 
 export interface Task {
   id: string;

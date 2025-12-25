@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TaskType } from '@/types/task';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ const weekdays = [0, 1, 2, 3, 4, 5, 6];
 
 export const AddTaskForm = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<TaskType>('daily');
@@ -27,6 +28,14 @@ export const AddTaskForm = () => {
   const [goalTarget, setGoalTarget] = useState('');
   const [howToDo, setHowToDo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Check for type param in URL
+  useEffect(() => {
+    const typeParam = searchParams.get('type');
+    if (typeParam && ['daily', 'weekly', 'particular', 'goal', 'floating', 'notify'].includes(typeParam)) {
+      setType(typeParam as TaskType);
+    }
+  }, [searchParams]);
 
   const getTomorrowISO = () => {
     const tomorrow = new Date();
@@ -172,6 +181,12 @@ export const AddTaskForm = () => {
                         Floating Task
                       </span>
                     </SelectItem>
+                    <SelectItem value="notify">
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-purple-500" />
+                        Notify Task
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -187,27 +202,44 @@ export const AddTaskForm = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Description (Optional)</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Add a description for this task..."
-                  rows={2}
-                />
-              </div>
-
-              {type !== 'floating' && (
+              {type !== 'notify' && (
                 <div className="space-y-2">
-                  <Label htmlFor="time">End Time (Optional)</Label>
+                  <Label htmlFor="description">Description (Optional)</Label>
+                  <Textarea
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Add a description for this task..."
+                    rows={2}
+                  />
+                </div>
+              )}
+
+              {(type !== 'floating') && (
+                <div className="space-y-2">
+                  <Label htmlFor="time">{type === 'notify' ? 'Notification Time *' : 'End Time (Optional)'}</Label>
                   <Input
                     id="time"
                     type="time"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">Tasks with time will be ordered by end time</p>
+                  <p className="text-xs text-muted-foreground">
+                    {type === 'notify' ? 'You will be notified at this time' : 'Tasks with time will be ordered by end time'}
+                  </p>
+                </div>
+              )}
+
+              {type === 'notify' && (
+                <div className="space-y-2">
+                  <Label htmlFor="notifyDate">Particular Date (Optional)</Label>
+                  <Input
+                    id="notifyDate"
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Leave empty to notify daily at the specified time</p>
                 </div>
               )}
 
