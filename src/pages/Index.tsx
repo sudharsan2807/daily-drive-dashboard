@@ -240,6 +240,8 @@ const Index = () => {
               </CardContent>
             </Card>
 
+            <TimelineView tasks={tasks} date={currentDate} />
+
             <FloatingTasksBlock
               tasks={allTasks}
               onToggle={handleToggle}
@@ -255,7 +257,6 @@ const Index = () => {
           </>
         )}
 
-        <TimelineView tasks={tasks} date={currentDate} />
         <GoalProgress tasks={allTasks} />
         <GoalHistory tasks={allTasks} />
       </main>
