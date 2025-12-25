@@ -6,9 +6,21 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Calendar, CheckCircle2, Clock, ListTodo, Search } from 'lucide-react';
-import { fetchTasks, getTaskTypeLabel } from '@/lib/taskStorage';
+import { ArrowLeft, Calendar, CheckCircle2, Clock, ListTodo, Search, Pencil, Trash2 } from 'lucide-react';
+import { fetchTasks, getTaskTypeLabel, deleteTask } from '@/lib/taskStorage';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { EditTaskDialog } from '@/components/EditTaskDialog';
 
 const History = () => {
   const navigate = useNavigate();
@@ -16,6 +28,11 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'entered' | 'completed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
 
   useEffect(() => {
     loadTasks();
@@ -76,6 +93,36 @@ const History = () => {
     );
   }, [baseFilteredTasks, searchQuery]);
 
+  const handleDoubleClick = (taskId: string) => {
+    setActiveTaskId(activeTaskId === taskId ? null : taskId);
+  };
+
+  const handleDeleteClick = (task: Task) => {
+    setTaskToDelete(task);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (taskToDelete) {
+      await deleteTask(taskToDelete.id);
+      setTasks(prev => prev.filter(t => t.id !== taskToDelete.id));
+      toast.success('Task deleted');
+      setDeleteDialogOpen(false);
+      setTaskToDelete(null);
+      setActiveTaskId(null);
+    }
+  };
+
+  const handleEditClick = (task: Task) => {
+    setTaskToEdit(task);
+    setEditDialogOpen(true);
+    setActiveTaskId(null);
+  };
+
+  const handleTaskUpdated = (updatedTask: Task) => {
+    setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
@@ -126,7 +173,11 @@ const History = () => {
               </div>
             ) : (
               filteredTasks.map(task => (
-                <Card key={task.id} className="animate-fade-in">
+                <Card 
+                  key={task.id} 
+                  className="animate-fade-in cursor-pointer"
+                  onDoubleClick={() => handleDoubleClick(task.id)}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
@@ -169,6 +220,33 @@ const History = () => {
                           </p>
                         )}
                       </div>
+                      
+                      {activeTaskId === task.id && (
+                        <div className="flex items-center gap-1 animate-fade-in">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditClick(task);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(task);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -177,6 +255,30 @@ const History = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{taskToDelete?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <EditTaskDialog
+        task={taskToEdit}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onTaskUpdated={handleTaskUpdated}
+      />
     </div>
   );
 };
