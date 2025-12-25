@@ -26,6 +26,7 @@ interface SortableTaskListProps {
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
   onReorder: (tasks: Task[]) => void;
+  disableCheckbox?: boolean;
 }
 
 export const SortableTaskList = ({
@@ -35,6 +36,7 @@ export const SortableTaskList = ({
   onDelete,
   onEdit,
   onReorder,
+  disableCheckbox = false,
 }: SortableTaskListProps) => {
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -114,6 +116,7 @@ export const SortableTaskList = ({
               onDelete={onDelete}
               onEdit={onEdit}
               isDragging={activeId === task.id}
+              disableCheckbox={disableCheckbox}
             />
           ))}
         </SortableContext>
@@ -131,6 +134,7 @@ export const SortableTaskList = ({
                 onToggle={onToggle}
                 onDelete={onDelete}
                 onEdit={onEdit}
+                disableCheckbox={disableCheckbox}
               />
             </div>
           ))}
