@@ -47,6 +47,8 @@
     --task-goal-bg: 270 60% 95%;
     --task-carried: 0 84% 60%;
     --task-carried-bg: 0 84% 97%;
+    --task-floating: 340 82% 52%;
+    --task-floating-bg: 340 82% 95%;
 
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 hsl(220 20% 10% / 0.05);
@@ -98,6 +100,7 @@
     --task-particular-bg: 25 70% 15%;
     --task-goal-bg: 270 40% 18%;
     --task-carried-bg: 0 50% 15%;
+    --task-floating-bg: 340 60% 18%;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -141,6 +144,10 @@
   .task-carried {
     @apply bg-[hsl(var(--task-carried-bg))] border-l-4 border-l-[hsl(var(--task-carried))];
   }
+  
+  .task-floating {
+    @apply bg-[hsl(var(--task-floating-bg))] border-l-4 border-l-[hsl(var(--task-floating))];
+  }
 
   .badge-daily {
     @apply bg-[hsl(var(--task-daily))] text-white;
@@ -156,6 +163,10 @@
   
   .badge-goal {
     @apply bg-[hsl(var(--task-goal))] text-white;
+  }
+  
+  .badge-floating {
+    @apply bg-[hsl(var(--task-floating))] text-white;
   }
 }
 

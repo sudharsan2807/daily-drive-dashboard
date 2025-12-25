@@ -25,13 +25,6 @@ export const AnalysisReport = ({ tasks, date }: AnalysisReportProps) => {
 
   const stats = [
     {
-      label: 'Total Tasks',
-      value: totalTasks,
-      icon: Circle,
-      color: 'text-primary',
-      bgColor: 'bg-primary/10',
-    },
-    {
       label: 'Completed',
       value: completedTasks,
       icon: CheckCircle2,
