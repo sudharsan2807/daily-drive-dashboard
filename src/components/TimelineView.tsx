@@ -16,7 +16,7 @@ export const TimelineView = ({ tasks, date }: TimelineViewProps) => {
   const [expanded, setExpanded] = useState(false);
 
   const tasksWithTime = tasks
-    .filter(t => t.time)
+    .filter(t => t.time && t.type !== 'notify') // Exclude notify tasks
     .sort((a, b) => {
       if (!a.time || !b.time) return 0;
       return a.time.localeCompare(b.time);
