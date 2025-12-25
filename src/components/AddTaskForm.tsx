@@ -136,28 +136,6 @@ export const AddTaskForm = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="name">Task Name *</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter task name"
-                  className="text-base"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description (Optional)</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Add a description for this task..."
-                  rows={2}
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="type">Task Type *</Label>
                 <Select value={type} onValueChange={(v) => setType(v as TaskType)}>
                   <SelectTrigger>
@@ -196,6 +174,28 @@ export const AddTaskForm = () => {
                     </SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="name">Task Name *</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter task name"
+                  className="text-base"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description (Optional)</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Add a description for this task..."
+                  rows={2}
+                />
               </div>
 
               {type !== 'floating' && (

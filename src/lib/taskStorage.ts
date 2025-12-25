@@ -225,9 +225,11 @@ export const filterTasksForDate = (tasks: Task[], date: string): Task[] => {
         if (task.exceptDays?.includes(dayOfWeek)) {
           return false;
         }
-        // Check date range
+        // Check date range - don't show before fromDate (when task was created/assigned)
         if (task.fromDate && date < task.fromDate) return false;
         if (task.toDate && date > task.toDate) return false;
+        // If no fromDate set, don't show before createdAt date
+        if (!task.fromDate && task.createdAt && date < task.createdAt) return false;
         return true;
       case 'weekly':
         return task.weekdays?.includes(dayOfWeek);
