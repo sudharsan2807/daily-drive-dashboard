@@ -12,7 +12,7 @@ import { EditTaskDialog } from '@/components/EditTaskDialog';
 import { DateSwitcher } from '@/components/DateSwitcher';
 import { FloatingTasksBlock } from '@/components/FloatingTasksBlock';
 import { CompletedTasksBlock } from '@/components/CompletedTasksBlock';
-import { Plus, ListChecks, Loader2 } from 'lucide-react';
+import { Plus, ListChecks, Loader2, History } from 'lucide-react';
 import { 
   fetchTasks,
   filterTasksForDate,
@@ -105,6 +105,8 @@ const Index = () => {
   // For current/future dates: show incomplete (pending) first
   const today = getTodayISO();
   const isPastDate = currentDate < today;
+  const isFutureDate = currentDate > today;
+  const isNotToday = currentDate !== today;
   
   const completedTasks = tasks.filter(t => isTaskCompletedToday(t, currentDate));
   const pendingTasks = tasks.filter(t => !isTaskCompletedToday(t, currentDate));
@@ -126,16 +128,21 @@ const Index = () => {
         <div className="container py-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex flex-col">
-              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <h1 className="text-xl font-bold text-foreground flex items-center gap-2 font-roboto">
                 <ListChecks className="h-6 w-6 text-primary" />
                 TASK FOR FUTURE
               </h1>
               <span className="text-xs text-muted-foreground ml-8">sudharsan</span>
             </div>
-            <Button onClick={() => navigate('/add')} className="shadow-glow">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Task
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={() => navigate('/history')}>
+                <History className="h-4 w-4" />
+              </Button>
+              <Button onClick={() => navigate('/add')} className="shadow-glow">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Task
+              </Button>
+            </div>
           </div>
           <DateSwitcher
             currentDate={currentDate}
@@ -186,6 +193,7 @@ const Index = () => {
                 onDelete={handleDelete}
                 onEdit={handleEdit}
                 onReorder={handleReorder}
+                disableCheckbox={isNotToday}
               />
             )}
           </CardContent>

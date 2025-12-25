@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
-import { isTaskCompletedToday, getTaskTypeLabel } from '@/lib/taskStorage';
+import { isTaskCompletedToday, getTaskTypeLabel, getTodayISO } from '@/lib/taskStorage';
+import { cn } from '@/lib/utils';
 
 interface CompletedTasksBlockProps {
   tasks: Task[];
@@ -17,6 +18,8 @@ export const CompletedTasksBlock = ({ tasks, date, onToggle }: CompletedTasksBlo
   const [expanded, setExpanded] = useState(false);
 
   const completedTasks = tasks.filter(t => isTaskCompletedToday(t, date));
+  const today = getTodayISO();
+  const isNotToday = date !== today;
 
   if (completedTasks.length === 0) {
     return null;
@@ -54,7 +57,9 @@ export const CompletedTasksBlock = ({ tasks, date, onToggle }: CompletedTasksBlo
               >
                 <Checkbox
                   checked={true}
-                  onCheckedChange={() => onToggle(task.id)}
+                  onCheckedChange={() => !isNotToday && onToggle(task.id)}
+                  disabled={isNotToday}
+                  className={cn(isNotToday && 'opacity-50 cursor-not-allowed')}
                 />
                 <div className="flex-1 min-w-0">
                   <span className="text-sm line-through opacity-60">{task.name}</span>

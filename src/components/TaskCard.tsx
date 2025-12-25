@@ -16,11 +16,13 @@ interface TaskCardProps {
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
   isDragging?: boolean;
+  disableCheckbox?: boolean;
 }
 
-export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, isDragging }: TaskCardProps) => {
+export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, isDragging, disableCheckbox = false }: TaskCardProps) => {
   const [showDescription, setShowDescription] = useState(false);
   const isCompleted = isTaskCompletedToday(task, date);
+  const isCheckboxDisabled = disableCheckbox && !isCompleted;
   const isCarried = !!task.carriedFrom;
 
   const {
@@ -84,10 +86,12 @@ export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, isDragging }:
         
         <Checkbox
           checked={isCompleted}
-          onCheckedChange={() => onToggle(task.id)}
+          onCheckedChange={() => !isCheckboxDisabled && onToggle(task.id)}
+          disabled={isCheckboxDisabled}
           className={cn(
             'mt-1 h-5 w-5 rounded-full transition-all',
-            isCompleted && 'animate-check'
+            isCompleted && 'animate-check',
+            isCheckboxDisabled && 'opacity-50 cursor-not-allowed'
           )}
         />
         
