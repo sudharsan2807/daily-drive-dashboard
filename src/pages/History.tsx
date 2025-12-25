@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Task } from '@/types/task';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Calendar, CheckCircle2, Clock, ListTodo } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle2, Clock, ListTodo, Search } from 'lucide-react';
 import { fetchTasks, getTaskTypeLabel } from '@/lib/taskStorage';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +15,7 @@ const History = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'entered' | 'completed'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadTasks();
@@ -47,6 +49,7 @@ const History = () => {
       case 'particular': return 'badge-particular';
       case 'goal': return 'badge-goal';
       case 'floating': return 'bg-floating text-floating-foreground';
+      case 'notify': return 'bg-purple-500 text-white';
       default: return '';
     }
   };
@@ -59,9 +62,19 @@ const History = () => {
     });
   };
 
-  const filteredTasks = filter === 'completed' ? completedTasks : 
-                        filter === 'entered' ? enteredTasks : 
-                        enteredTasks;
+  const baseFilteredTasks = filter === 'completed' ? completedTasks : 
+                            filter === 'entered' ? enteredTasks : 
+                            enteredTasks;
+
+  const filteredTasks = useMemo(() => {
+    if (!searchQuery.trim()) return baseFilteredTasks;
+    const query = searchQuery.toLowerCase();
+    return baseFilteredTasks.filter(task => 
+      task.name.toLowerCase().includes(query) ||
+      task.description?.toLowerCase().includes(query) ||
+      task.type.toLowerCase().includes(query)
+    );
+  }, [baseFilteredTasks, searchQuery]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -77,6 +90,17 @@ const History = () => {
       </header>
 
       <main className="container py-6">
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
         <Tabs value={filter} onValueChange={(v) => setFilter(v as 'all' | 'entered' | 'completed')}>
           <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="all" className="flex items-center gap-2">
