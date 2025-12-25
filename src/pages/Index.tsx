@@ -101,8 +101,16 @@ const Index = () => {
     });
   }, []);
 
-  // Filter pending tasks (not completed)
+  // For past dates: show completed first, then incomplete
+  // For current/future dates: show incomplete (pending) first
+  const today = getTodayISO();
+  const isPastDate = currentDate < today;
+  
+  const completedTasks = tasks.filter(t => isTaskCompletedToday(t, currentDate));
   const pendingTasks = tasks.filter(t => !isTaskCompletedToday(t, currentDate));
+  
+  // For past dates, reorder to show completed first
+  const orderedTasks = isPastDate ? [...completedTasks, ...pendingTasks] : tasks;
 
   if (loading) {
     return (
@@ -117,10 +125,13 @@ const Index = () => {
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container py-4">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-              <ListChecks className="h-6 w-6 text-primary" />
-              Daily Routine
-            </h1>
+            <div className="flex flex-col">
+              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <ListChecks className="h-6 w-6 text-primary" />
+                TASK FOR FUTURE
+              </h1>
+              <span className="text-xs text-muted-foreground ml-8">sudharsan</span>
+            </div>
             <Button onClick={() => navigate('/add')} className="shadow-glow">
               <Plus className="h-4 w-4 mr-2" />
               Add Task

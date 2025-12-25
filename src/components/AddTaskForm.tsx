@@ -190,7 +190,7 @@ export const AddTaskForm = () => {
                     </SelectItem>
                     <SelectItem value="floating">
                       <span className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-[hsl(var(--task-floating))]" />
+                        <span className="h-2 w-2 rounded-full bg-amber-500" />
                         Floating Task
                       </span>
                     </SelectItem>
