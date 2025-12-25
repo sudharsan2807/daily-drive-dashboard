@@ -35,13 +35,13 @@ export const FloatingTasksBlock = ({ tasks, onToggle, onDelete, onEdit }: Floati
   };
 
   return (
-    <Card className="animate-slide-up task-floating">
+    <Card className="animate-slide-up bg-amber-500/10">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <Wind className="h-5 w-5 text-task-floating" />
+            <Wind className="h-5 w-5 text-amber-500" />
             Floating Tasks
-            <Badge variant="secondary" className="ml-2 text-xs">
+            <Badge variant="secondary" className="ml-2 text-xs bg-amber-500/20 text-amber-600">
               {activeTasks.length}
             </Badge>
           </span>
