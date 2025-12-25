@@ -22,6 +22,8 @@ import {
   isTaskCompletedToday,
 } from '@/lib/taskStorage';
 import { toast } from 'sonner';
+import { useTaskNotifications } from '@/hooks/useTaskNotifications';
+
 
 const Index = () => {
   const navigate = useNavigate();
@@ -32,6 +34,9 @@ const Index = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(getTodayISO());
   const [viewMode, setViewMode] = useState<'day' | 'month'>('day');
+  
+  // Enable browser notifications for timed tasks
+  useTaskNotifications(tasks);
 
   useEffect(() => {
     loadTasks();
@@ -156,54 +161,96 @@ const Index = () => {
       <main className="container py-6 space-y-6">
         <AnalysisReport tasks={tasks} date={currentDate} />
 
-        <FloatingTasksBlock
-          tasks={allTasks}
-          onToggle={handleToggle}
-          onDelete={handleDelete}
-          onEdit={handleEdit}
-        />
+        {/* Past dates: show completed first, then not completed */}
+        {isPastDate ? (
+          <>
+            <CompletedTasksBlock
+              tasks={tasks}
+              date={currentDate}
+              onToggle={handleToggle}
+            />
 
-        <Card className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              📅 Tasks
-              <span className="text-sm font-normal text-muted-foreground">
-                ({pendingTasks.length} pending)
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {pendingTasks.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <ListChecks className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                <p>No pending tasks</p>
-                <Button 
-                  variant="link" 
-                  onClick={() => navigate('/add')}
-                  className="mt-2"
-                >
-                  Add a task
-                </Button>
-              </div>
-            ) : (
-              <SortableTaskList
-                tasks={pendingTasks}
-                date={currentDate}
-                onToggle={handleToggle}
-                onDelete={handleDelete}
-                onEdit={handleEdit}
-                onReorder={handleReorder}
-                disableCheckbox={isNotToday}
-              />
-            )}
-          </CardContent>
-        </Card>
+            <Card className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  ❌ Not Completed
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({pendingTasks.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pendingTasks.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <ListChecks className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>All tasks completed!</p>
+                  </div>
+                ) : (
+                  <SortableTaskList
+                    tasks={pendingTasks}
+                    date={currentDate}
+                    onToggle={handleToggle}
+                    onDelete={handleDelete}
+                    onEdit={handleEdit}
+                    onReorder={handleReorder}
+                    disableCheckbox={isNotToday}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <>
+            <Card className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  📅 Tasks
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({pendingTasks.length} pending)
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pendingTasks.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <ListChecks className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>No pending tasks</p>
+                    <Button 
+                      variant="link" 
+                      onClick={() => navigate('/add')}
+                      className="mt-2"
+                    >
+                      Add a task
+                    </Button>
+                  </div>
+                ) : (
+                  <SortableTaskList
+                    tasks={pendingTasks}
+                    date={currentDate}
+                    onToggle={handleToggle}
+                    onDelete={handleDelete}
+                    onEdit={handleEdit}
+                    onReorder={handleReorder}
+                    disableCheckbox={isNotToday}
+                  />
+                )}
+              </CardContent>
+            </Card>
 
-        <CompletedTasksBlock
-          tasks={tasks}
-          date={currentDate}
-          onToggle={handleToggle}
-        />
+            <FloatingTasksBlock
+              tasks={allTasks}
+              onToggle={handleToggle}
+              onDelete={handleDelete}
+              onEdit={handleEdit}
+            />
+
+            <CompletedTasksBlock
+              tasks={tasks}
+              date={currentDate}
+              onToggle={handleToggle}
+            />
+          </>
+        )}
 
         <TimelineView tasks={tasks} date={currentDate} />
         <GoalProgress tasks={allTasks} />

@@ -16,7 +16,7 @@ interface FloatingTasksBlockProps {
 }
 
 export const FloatingTasksBlock = ({ tasks, onToggle, onDelete, onEdit }: FloatingTasksBlockProps) => {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const today = getTodayISO();
 
   const floatingTasks = tasks.filter(t => t.type === 'floating');
