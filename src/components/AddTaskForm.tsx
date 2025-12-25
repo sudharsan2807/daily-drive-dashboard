@@ -20,12 +20,19 @@ export const AddTaskForm = () => {
   const [type, setType] = useState<TaskType>('daily');
   const [time, setTime] = useState('');
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
+  const [exceptDays, setExceptDays] = useState<number[]>([]);
   const [date, setDate] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [goalTarget, setGoalTarget] = useState('');
   const [howToDo, setHowToDo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const getTomorrowISO = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +57,6 @@ export const AddTaskForm = () => {
       return;
     }
 
-
     setSubmitting(true);
 
     // Calculate goal target from date range if both dates are provided
@@ -69,8 +75,9 @@ export const AddTaskForm = () => {
       name: name.trim(),
       type: taskType,
       description: description.trim() || undefined,
-      time: time || undefined,
+      time: type !== 'floating' ? time || undefined : undefined,
       weekdays: type === 'weekly' ? selectedWeekdays : undefined,
+      exceptDays: type === 'daily' && exceptDays.length > 0 ? exceptDays : undefined,
       date: type === 'particular' ? date : undefined,
       fromDate: effectiveFromDate,
       toDate: type === 'daily' && toDate ? toDate : undefined,
@@ -93,6 +100,18 @@ export const AddTaskForm = () => {
         ? prev.filter(d => d !== day)
         : [...prev, day]
     );
+  };
+
+  const toggleExceptDay = (day: number) => {
+    setExceptDays(prev =>
+      prev.includes(day)
+        ? prev.filter(d => d !== day)
+        : [...prev, day]
+    );
+  };
+
+  const setQuickDate = (dateStr: string) => {
+    setDate(dateStr);
   };
 
   return (
@@ -169,19 +188,28 @@ export const AddTaskForm = () => {
                         Goal Task
                       </span>
                     </SelectItem>
+                    <SelectItem value="floating">
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-[hsl(var(--task-floating))]" />
+                        Floating Task
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="time">Time (Optional)</Label>
-                <Input
-                  id="time"
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                />
-              </div>
+              {type !== 'floating' && (
+                <div className="space-y-2">
+                  <Label htmlFor="time">End Time (Optional)</Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Tasks with time will be ordered by end time</p>
+                </div>
+              )}
 
               {type === 'daily' && (
                 <div className="space-y-4">
@@ -213,6 +241,27 @@ export const AddTaskForm = () => {
                       Target: {calculateDateGap(fromDate || getTodayISO(), toDate)} days
                     </p>
                   )}
+                  
+                  <div className="space-y-2">
+                    <Label>Except Days (Optional)</Label>
+                    <p className="text-xs text-muted-foreground">Task won't appear on these days</p>
+                    <div className="flex flex-wrap gap-2">
+                      {weekdays.map(day => (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => toggleExceptDay(day)}
+                          className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            exceptDays.includes(day)
+                              ? 'bg-destructive text-destructive-foreground'
+                              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                          }`}
+                        >
+                          {getWeekdayName(day)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -241,12 +290,29 @@ export const AddTaskForm = () => {
               {type === 'particular' && (
                 <div className="space-y-2">
                   <Label htmlFor="date">Date *</Label>
+                  <div className="flex gap-2 mb-2">
+                    <Button
+                      type="button"
+                      variant={date === getTodayISO() ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setQuickDate(getTodayISO())}
+                    >
+                      Today
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={date === getTomorrowISO() ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setQuickDate(getTomorrowISO())}
+                    >
+                      Tomorrow
+                    </Button>
+                  </div>
                   <Input
                     id="date"
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    min={getTodayISO()}
                   />
                 </div>
               )}

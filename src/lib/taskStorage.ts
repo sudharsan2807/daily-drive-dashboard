@@ -22,6 +22,7 @@ const rowToTask = (row: any): Task => ({
   description: row.description || undefined,
   time: row.time || undefined,
   weekdays: row.weekdays || undefined,
+  exceptDays: row.except_days || undefined,
   date: row.date || undefined,
   fromDate: row.from_date || undefined,
   toDate: row.to_date || undefined,
@@ -30,6 +31,8 @@ const rowToTask = (row: any): Task => ({
   howToDo: row.how_to_do || undefined,
   completedDates: row.completed_dates || [],
   createdAt: row.created_at?.split('T')[0] || getTodayISO(),
+  postponedFrom: row.postponed_from || undefined,
+  dayCount: row.day_count || 0,
   sortOrder: row.sort_order || 0,
 });
 
@@ -68,6 +71,7 @@ export const addTask = async (task: Omit<Task, 'id' | 'completedDates' | 'create
       description: task.description || null,
       time: task.time || null,
       weekdays: task.weekdays || null,
+      except_days: task.exceptDays || null,
       date: task.date || null,
       from_date: task.fromDate || null,
       to_date: task.toDate || null,
@@ -76,6 +80,7 @@ export const addTask = async (task: Omit<Task, 'id' | 'completedDates' | 'create
       how_to_do: task.howToDo || null,
       completed_dates: [],
       sort_order: maxSortOrder + 1,
+      day_count: 0,
     })
     .select()
     .single();
@@ -97,6 +102,7 @@ export const updateTask = async (id: string, updates: Partial<Task>): Promise<vo
   if (updates.description !== undefined) dbUpdates.description = updates.description;
   if (updates.time !== undefined) dbUpdates.time = updates.time;
   if (updates.weekdays !== undefined) dbUpdates.weekdays = updates.weekdays;
+  if (updates.exceptDays !== undefined) dbUpdates.except_days = updates.exceptDays;
   if (updates.date !== undefined) dbUpdates.date = updates.date;
   if (updates.fromDate !== undefined) dbUpdates.from_date = updates.fromDate;
   if (updates.toDate !== undefined) dbUpdates.to_date = updates.toDate;
@@ -105,6 +111,8 @@ export const updateTask = async (id: string, updates: Partial<Task>): Promise<vo
   if (updates.howToDo !== undefined) dbUpdates.how_to_do = updates.howToDo;
   if (updates.completedDates !== undefined) dbUpdates.completed_dates = updates.completedDates;
   if (updates.sortOrder !== undefined) dbUpdates.sort_order = updates.sortOrder;
+  if (updates.postponedFrom !== undefined) dbUpdates.postponed_from = updates.postponedFrom;
+  if (updates.dayCount !== undefined) dbUpdates.day_count = updates.dayCount;
 
   const { error } = await supabase
     .from('tasks')
@@ -206,31 +214,45 @@ export const filterTasksForDate = (tasks: Task[], date: string): Task[] => {
       return false;
     }
 
+    // Skip floating tasks (they go in separate block)
+    if (task.type === 'floating') {
+      return false;
+    }
+
     switch (task.type) {
       case 'daily':
+        // Check if this day is excluded
+        if (task.exceptDays?.includes(dayOfWeek)) {
+          return false;
+        }
+        // Check date range
+        if (task.fromDate && date < task.fromDate) return false;
+        if (task.toDate && date > task.toDate) return false;
         return true;
       case 'weekly':
         return task.weekdays?.includes(dayOfWeek);
       case 'particular':
-        // Show if it's the scheduled date or if it was carried forward
-        if (task.date === date) return true;
-        // Check if it should be carried forward (incomplete past task)
-        if (task.date && task.date < date && !task.completedDates.includes(task.date)) {
-          return true;
-        }
-        return false;
+        // Show ONLY if it's the scheduled date
+        return task.date === date;
       case 'goal':
         return true;
       default:
         return false;
     }
-  }).map(task => {
-    // Mark carried forward tasks
-    if (task.type === 'particular' && task.date && task.date < date && !task.completedDates.includes(task.date)) {
-      return { ...task, carriedFrom: task.date };
-    }
-    return task;
   });
+};
+
+// Get floating tasks (always show until completed)
+export const getFloatingTasks = (tasks: Task[]): Task[] => {
+  return tasks.filter(task => task.type === 'floating' && !task.completedDates.length);
+};
+
+// Calculate days since creation
+export const getDaysSinceCreation = (createdAt: string): number => {
+  const created = new Date(createdAt);
+  const today = new Date(getTodayISO());
+  const diffTime = today.getTime() - created.getTime();
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 };
 
 export const getTaskTypeLabel = (type: TaskType): string => {
@@ -239,6 +261,7 @@ export const getTaskTypeLabel = (type: TaskType): string => {
     weekly: 'Weekly',
     particular: 'Specific Day',
     goal: 'Goal',
+    floating: 'Floating',
   };
   return labels[type];
 };

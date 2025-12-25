@@ -7,15 +7,19 @@ import { SortableTaskList } from '@/components/SortableTaskList';
 import { AnalysisReport } from '@/components/AnalysisReport';
 import { TimelineView } from '@/components/TimelineView';
 import { GoalProgress } from '@/components/GoalProgress';
+import { GoalHistory } from '@/components/GoalHistory';
 import { EditTaskDialog } from '@/components/EditTaskDialog';
-import { Plus, Calendar, ListChecks, Loader2 } from 'lucide-react';
+import { DateSwitcher } from '@/components/DateSwitcher';
+import { FloatingTasksBlock } from '@/components/FloatingTasksBlock';
+import { CompletedTasksBlock } from '@/components/CompletedTasksBlock';
+import { Plus, ListChecks, Loader2 } from 'lucide-react';
 import { 
   fetchTasks,
   filterTasksForDate,
   getTodayISO, 
-  formatDate, 
   toggleTaskCompletion, 
   deleteTask,
+  isTaskCompletedToday,
 } from '@/lib/taskStorage';
 import { toast } from 'sonner';
 
@@ -26,26 +30,47 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const today = getTodayISO();
+  const [currentDate, setCurrentDate] = useState(getTodayISO());
+  const [viewMode, setViewMode] = useState<'day' | 'month'>('day');
 
   useEffect(() => {
     loadTasks();
   }, []);
 
+  useEffect(() => {
+    if (allTasks.length > 0) {
+      const filtered = filterTasksForDate(allTasks, currentDate);
+      // Sort by time if available
+      const sorted = [...filtered].sort((a, b) => {
+        if (a.time && b.time) return a.time.localeCompare(b.time);
+        if (a.time) return -1;
+        if (b.time) return 1;
+        return a.sortOrder - b.sortOrder;
+      });
+      setTasks(sorted);
+    }
+  }, [currentDate, allTasks]);
+
   const loadTasks = async () => {
     setLoading(true);
     const all = await fetchTasks();
-    const todayTasks = filterTasksForDate(all, today);
-    setTasks(todayTasks);
     setAllTasks(all);
+    const filtered = filterTasksForDate(all, currentDate);
+    const sorted = [...filtered].sort((a, b) => {
+      if (a.time && b.time) return a.time.localeCompare(b.time);
+      if (a.time) return -1;
+      if (b.time) return 1;
+      return a.sortOrder - b.sortOrder;
+    });
+    setTasks(sorted);
     setLoading(false);
   };
 
   const handleToggle = async (id: string) => {
-    const task = tasks.find(t => t.id === id);
+    const task = allTasks.find(t => t.id === id);
     if (!task) return;
     
-    const updatedTask = await toggleTaskCompletion(task, today);
+    const updatedTask = await toggleTaskCompletion(task, currentDate);
     setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
     setAllTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
   };
@@ -70,11 +95,14 @@ const Index = () => {
   const handleReorder = useCallback((reorderedTasks: Task[]) => {
     setTasks(reorderedTasks);
     setAllTasks(prev => {
-      const todayTaskIds = new Set(reorderedTasks.map(t => t.id));
-      const otherTasks = prev.filter(t => !todayTaskIds.has(t.id));
+      const taskIds = new Set(reorderedTasks.map(t => t.id));
+      const otherTasks = prev.filter(t => !taskIds.has(t.id));
       return [...reorderedTasks, ...otherTasks];
     });
   }, []);
+
+  // Filter pending tasks (not completed)
+  const pendingTasks = tasks.filter(t => !isTaskCompletedToday(t, currentDate));
 
   if (loading) {
     return (
@@ -86,60 +114,63 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-                <ListChecks className="h-6 w-6 text-primary" />
-                Daily Routine
-              </h1>
-              <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                <Calendar className="h-3.5 w-3.5" />
-                {formatDate(new Date())}
-              </p>
-            </div>
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <ListChecks className="h-6 w-6 text-primary" />
+              Daily Routine
+            </h1>
             <Button onClick={() => navigate('/add')} className="shadow-glow">
               <Plus className="h-4 w-4 mr-2" />
               Add Task
             </Button>
           </div>
+          <DateSwitcher
+            currentDate={currentDate}
+            onDateChange={setCurrentDate}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+          />
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container py-6 space-y-6">
-        {/* Analysis Report */}
-        <AnalysisReport tasks={tasks} date={today} />
+        <AnalysisReport tasks={tasks} date={currentDate} />
 
-        {/* Today's Tasks - Combined */}
+        <FloatingTasksBlock
+          tasks={allTasks}
+          onToggle={handleToggle}
+          onDelete={handleDelete}
+          onEdit={handleEdit}
+        />
+
         <Card className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
-              📅 Today's Tasks
+              📅 Tasks
               <span className="text-sm font-normal text-muted-foreground">
-                ({tasks.length} tasks)
+                ({pendingTasks.length} pending)
               </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {tasks.length === 0 ? (
+            {pendingTasks.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <ListChecks className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                <p>No tasks for today</p>
+                <p>No pending tasks</p>
                 <Button 
                   variant="link" 
                   onClick={() => navigate('/add')}
                   className="mt-2"
                 >
-                  Add your first task
+                  Add a task
                 </Button>
               </div>
             ) : (
               <SortableTaskList
-                tasks={tasks}
-                date={today}
+                tasks={pendingTasks}
+                date={currentDate}
                 onToggle={handleToggle}
                 onDelete={handleDelete}
                 onEdit={handleEdit}
@@ -149,14 +180,17 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        {/* Timeline View */}
-        <TimelineView tasks={tasks} date={today} />
+        <CompletedTasksBlock
+          tasks={tasks}
+          date={currentDate}
+          onToggle={handleToggle}
+        />
 
-        {/* Goal Progress */}
+        <TimelineView tasks={tasks} date={currentDate} />
         <GoalProgress tasks={allTasks} />
+        <GoalHistory tasks={allTasks} />
       </main>
 
-      {/* Floating Add Button for Mobile */}
       <Button
         onClick={() => navigate('/add')}
         className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg shadow-primary/30 md:hidden"
@@ -165,7 +199,6 @@ const Index = () => {
         <Plus className="h-6 w-6" />
       </Button>
 
-      {/* Edit Task Dialog */}
       <EditTaskDialog
         task={editingTask}
         open={editDialogOpen}
