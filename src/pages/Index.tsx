@@ -45,7 +45,8 @@ const Index = () => {
 
   useEffect(() => {
     if (allTasks.length > 0) {
-      const filtered = filterTasksForDate(allTasks, currentDate);
+      const filtered = filterTasksForDate(allTasks, currentDate)
+        .filter(t => t.type !== 'notify'); // Exclude notify tasks from main view
       // Sort by time if available
       const sorted = [...filtered].sort((a, b) => {
         if (a.time && b.time) return a.time.localeCompare(b.time);
@@ -61,7 +62,8 @@ const Index = () => {
     setLoading(true);
     const all = await fetchTasks();
     setAllTasks(all);
-    const filtered = filterTasksForDate(all, currentDate);
+    const filtered = filterTasksForDate(all, currentDate)
+      .filter(t => t.type !== 'notify'); // Exclude notify tasks from main view
     const sorted = [...filtered].sort((a, b) => {
       if (a.time && b.time) return a.time.localeCompare(b.time);
       if (a.time) return -1;
@@ -141,7 +143,7 @@ const Index = () => {
               <span className="text-xs text-muted-foreground ml-8">sudharsan</span>
             </div>
             <div className="flex items-center gap-2">
-              <NotifyTasksList tasks={allTasks} />
+              <NotifyTasksList tasks={allTasks} onDelete={handleDelete} onEdit={handleEdit} />
               <Button variant="outline" size="icon" onClick={() => navigate('/history')}>
                 <History className="h-4 w-4" />
               </Button>
