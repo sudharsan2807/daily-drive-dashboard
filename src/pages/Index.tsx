@@ -35,8 +35,8 @@ const Index = () => {
   const [currentDate, setCurrentDate] = useState(getTodayISO());
   const [viewMode, setViewMode] = useState<'day' | 'month'>('day');
   
-  // Enable browser notifications for timed tasks
-  useTaskNotifications(tasks);
+  // Enable local push notifications for timed tasks
+  const { sendTestNotification } = useTaskNotifications(tasks);
 
   useEffect(() => {
     loadTasks();
@@ -132,7 +132,7 @@ const Index = () => {
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container py-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex flex-col">
+            <div className="flex flex-col cursor-pointer" onClick={sendTestNotification}>
               <h1 className="text-xl font-bold text-foreground flex items-center gap-2 font-roboto">
                 <ListChecks className="h-6 w-6 text-primary" />
                 TASK FOR FUTURE
