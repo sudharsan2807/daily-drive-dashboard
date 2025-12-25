@@ -192,28 +192,28 @@ export const AddTaskForm = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">Task Name *</Label>
+                <Label htmlFor="name">{type === 'goal' ? 'Goal Name *' : 'Task Name *'}</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter task name"
+                  placeholder={type === 'goal' ? 'Enter goal name' : 'Enter task name'}
                   className="text-base"
                 />
               </div>
 
-              {type !== 'notify' && (
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description (Optional)</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Add a description for this task..."
-                    rows={2}
-                  />
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="description">
+                  {type === 'notify' ? 'Notification Message (Optional)' : 'Description (Optional)'}
+                </Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder={type === 'notify' ? 'Message to show in the notification...' : 'Add a description for this task...'}
+                  rows={2}
+                />
+              </div>
 
               {(type !== 'floating') && (
                 <div className="space-y-2">

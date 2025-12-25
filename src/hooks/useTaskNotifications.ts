@@ -1,75 +1,55 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Task } from '@/types/task';
 import { getTodayISO, isTaskCompletedToday } from '@/lib/taskStorage';
+import despia from 'despia-native';
+
+// Send local push notification using Despia SDK
+const sendLocalNotification = (title: string, message: string, delaySeconds: number = 0) => {
+  const url = window.location.href;
+  despia(`sendlocalpushmsg://push.send?s=${delaySeconds}=msg!${message}&!#${title}&!#${url}`);
+};
 
 export const useTaskNotifications = (tasks: Task[]) => {
   const notifiedTasksRef = useRef<Set<string>>(new Set());
-  const permissionRequestedRef = useRef(false);
 
-  // Request notification permission
-  const requestPermission = useCallback(async () => {
-    if (!('Notification' in window)) {
-      console.log('This browser does not support notifications');
-      return false;
-    }
-
-    if (Notification.permission === 'granted') {
-      return true;
-    }
-
-    if (Notification.permission !== 'denied' && !permissionRequestedRef.current) {
-      permissionRequestedRef.current = true;
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    }
-
-    return false;
+  // Send immediate notification
+  const sendNotification = useCallback((title: string, message: string) => {
+    sendLocalNotification(title, message, 0);
   }, []);
 
-  // Show notification
-  const showNotification = useCallback((task: Task) => {
-    if (Notification.permission !== 'granted') return;
-
-    const notification = new Notification('Task Reminder', {
-      body: `"${task.name}" is due now and not completed!`,
-      icon: '/favicon.ico',
-      tag: task.id, // Prevent duplicate notifications
-      requireInteraction: true,
-    });
-
-    notification.onclick = () => {
-      window.focus();
-      notification.close();
-    };
+  // Test notification function
+  const sendTestNotification = useCallback(() => {
+    sendLocalNotification('Test Notification', 'hi', 0);
   }, []);
-
-  useEffect(() => {
-    // Request permission on mount
-    requestPermission();
-  }, [requestPermission]);
 
   useEffect(() => {
     const today = getTodayISO();
     
-    // Get tasks with time that are not completed today
+    // Get tasks with time that are not completed today (for task reminders)
     const timedTasks = tasks.filter(
       (task) =>
         task.time &&
         task.type !== 'floating' &&
+        task.type !== 'notify' &&
         !isTaskCompletedToday(task, today)
     );
 
-    if (timedTasks.length === 0) return;
+    // Get notify type tasks for today
+    const notifyTasks = tasks.filter(
+      (task) =>
+        task.type === 'notify' &&
+        task.time &&
+        (!task.date || task.date === today) // Either no date (daily) or today's date
+    );
 
     const checkTasks = () => {
       const now = new Date();
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
+      // Check timed tasks for reminders (not completed)
       timedTasks.forEach((task) => {
         if (!task.time) return;
         
-        // Check if current time matches or has passed the task time
-        // Only notify once per task per day
         const notificationKey = `${task.id}-${today}`;
         
         if (
@@ -78,7 +58,30 @@ export const useTaskNotifications = (tasks: Task[]) => {
           !isTaskCompletedToday(task, today)
         ) {
           notifiedTasksRef.current.add(notificationKey);
-          showNotification(task);
+          sendLocalNotification(
+            'Task Reminder',
+            `"${task.name}" is due now and not completed!`,
+            0
+          );
+        }
+      });
+
+      // Check notify type tasks
+      notifyTasks.forEach((task) => {
+        if (!task.time) return;
+        
+        const notificationKey = `notify-${task.id}-${today}`;
+        
+        if (
+          currentTime >= task.time &&
+          !notifiedTasksRef.current.has(notificationKey)
+        ) {
+          notifiedTasksRef.current.add(notificationKey);
+          sendLocalNotification(
+            task.name,
+            task.description || 'Notification reminder',
+            0
+          );
         }
       });
     };
@@ -90,7 +93,7 @@ export const useTaskNotifications = (tasks: Task[]) => {
     const interval = setInterval(checkTasks, 60000);
 
     return () => clearInterval(interval);
-  }, [tasks, showNotification]);
+  }, [tasks]);
 
   // Clear notified tasks at midnight
   useEffect(() => {
@@ -109,5 +112,5 @@ export const useTaskNotifications = (tasks: Task[]) => {
     clearAtMidnight();
   }, []);
 
-  return { requestPermission };
+  return { sendNotification, sendTestNotification };
 };
