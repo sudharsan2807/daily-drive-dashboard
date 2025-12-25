@@ -61,6 +61,8 @@ export default {
           "goal-bg": "hsl(var(--task-goal-bg))",
           carried: "hsl(var(--task-carried))",
           "carried-bg": "hsl(var(--task-carried-bg))",
+          floating: "hsl(var(--task-floating))",
+          "floating-bg": "hsl(var(--task-floating-bg))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

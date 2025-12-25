@@ -20,8 +20,9 @@ export const FloatingTasksBlock = ({ tasks, onToggle, onDelete, onEdit }: Floati
   const today = getTodayISO();
 
   const floatingTasks = tasks.filter(t => t.type === 'floating');
-  const activeTasks = floatingTasks.filter(t => !t.completedDates.includes(today));
-  const completedTasks = floatingTasks.filter(t => t.completedDates.includes(today));
+  // Floating tasks are considered "done" if they have any completion date
+  const activeTasks = floatingTasks.filter(t => t.completedDates.length === 0);
+  const completedTasks = floatingTasks.filter(t => t.completedDates.length > 0);
 
   if (floatingTasks.length === 0) {
     return null;
@@ -38,7 +39,7 @@ export const FloatingTasksBlock = ({ tasks, onToggle, onDelete, onEdit }: Floati
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <Wind className="h-5 w-5 text-[hsl(var(--task-floating))]" />
+            <Wind className="h-5 w-5 text-task-floating" />
             Floating Tasks
             <Badge variant="secondary" className="ml-2 text-xs">
               {activeTasks.length}

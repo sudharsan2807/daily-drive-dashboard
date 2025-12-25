@@ -1,5 +1,9 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface DateSwitcherProps {
   currentDate: string;
@@ -14,6 +18,7 @@ export const DateSwitcher = ({
   viewMode, 
   onViewModeChange 
 }: DateSwitcherProps) => {
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const today = new Date().toISOString().split('T')[0];
   const current = new Date(currentDate);
 
@@ -63,6 +68,14 @@ export const DateSwitcher = ({
     onDateChange(next.toISOString().split('T')[0]);
   };
 
+  const handleCalendarSelect = (date: Date | undefined) => {
+    if (date) {
+      onDateChange(date.toISOString().split('T')[0]);
+      setCalendarOpen(false);
+      onViewModeChange('day');
+    }
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
@@ -76,9 +89,28 @@ export const DateSwitcher = ({
             <ChevronLeft className="h-4 w-4" />
           </Button>
           
-          <span className="min-w-[120px] text-center font-medium">
-            {viewMode === 'day' ? getDateLabel() : getMonthLabel()}
-          </span>
+          {viewMode === 'month' ? (
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" className="min-w-[120px] font-medium">
+                  {getMonthLabel()}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="center">
+                <Calendar
+                  mode="single"
+                  selected={current}
+                  onSelect={handleCalendarSelect}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <span className="min-w-[120px] text-center font-medium">
+              {getDateLabel()}
+            </span>
+          )}
           
           <Button 
             variant="ghost" 
