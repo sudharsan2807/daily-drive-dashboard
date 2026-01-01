@@ -1,4 +1,4 @@
-export type TaskType = 'daily' | 'weekly' | 'particular' | 'goal' | 'floating' | 'notify';
+export type TaskType = 'daily' | 'weekly' | 'particular' | 'goal' | 'floating' | 'notify' | 'floating_goal';
 
 export interface Task {
   id: string;
@@ -20,6 +20,8 @@ export interface Task {
   postponedFrom?: string; // Original date for postponed particular tasks
   dayCount?: number; // Days since creation for floating tasks
   sortOrder: number;
+  intervalDays?: number; // For gap days scheduling (e.g., every 2 days)
+  skippedDates?: string[]; // Dates where task was skipped/removed for that day only
 }
 
 export interface TaskStore {

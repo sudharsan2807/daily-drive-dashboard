@@ -34,6 +34,8 @@ const rowToTask = (row: any): Task => ({
   postponedFrom: row.postponed_from || undefined,
   dayCount: row.day_count || 0,
   sortOrder: row.sort_order || 0,
+  intervalDays: row.interval_days || 1,
+  skippedDates: row.skipped_dates || [],
 });
 
 // Fetch all tasks from Supabase
@@ -76,11 +78,13 @@ export const addTask = async (task: Omit<Task, 'id' | 'completedDates' | 'create
       from_date: task.fromDate || null,
       to_date: task.toDate || null,
       goal_target: task.goalTarget || null,
-      goal_completed: task.type === 'goal' ? 0 : null,
+      goal_completed: (task.type === 'goal' || task.type === 'floating_goal') ? 0 : null,
       how_to_do: task.howToDo || null,
       completed_dates: [],
       sort_order: maxSortOrder + 1,
       day_count: 0,
+      interval_days: task.intervalDays || 1,
+      skipped_dates: [],
     })
     .select()
     .single();
@@ -113,6 +117,8 @@ export const updateTask = async (id: string, updates: Partial<Task>): Promise<vo
   if (updates.sortOrder !== undefined) dbUpdates.sort_order = updates.sortOrder;
   if (updates.postponedFrom !== undefined) dbUpdates.postponed_from = updates.postponedFrom;
   if (updates.dayCount !== undefined) dbUpdates.day_count = updates.dayCount;
+  if (updates.intervalDays !== undefined) dbUpdates.interval_days = updates.intervalDays;
+  if (updates.skippedDates !== undefined) dbUpdates.skipped_dates = updates.skippedDates;
 
   const { error } = await supabase
     .from('tasks')
@@ -159,6 +165,25 @@ export const deleteTask = async (id: string): Promise<void> => {
   }
 };
 
+// Skip a task for a specific date (remove for today only)
+export const skipTaskForDate = async (task: Task, date: string): Promise<Task> => {
+  const newSkippedDates = [...(task.skippedDates || []), date];
+  
+  const { error } = await supabase
+    .from('tasks')
+    .update({ skipped_dates: newSkippedDates })
+    .eq('id', task.id);
+
+  if (error) {
+    console.error('Error skipping task:', error);
+  }
+
+  return {
+    ...task,
+    skippedDates: newSkippedDates,
+  };
+};
+
 // Toggle task completion for a specific date
 export const toggleTaskCompletion = async (task: Task, date: string): Promise<Task> => {
   let newCompletedDates = [...task.completedDates];
@@ -166,12 +191,12 @@ export const toggleTaskCompletion = async (task: Task, date: string): Promise<Ta
 
   if (newCompletedDates.includes(date)) {
     newCompletedDates = newCompletedDates.filter(d => d !== date);
-    if (task.type === 'goal' && newGoalCompleted !== undefined && newGoalCompleted > 0) {
+    if ((task.type === 'goal' || task.type === 'floating_goal') && newGoalCompleted !== undefined && newGoalCompleted > 0) {
       newGoalCompleted--;
     }
   } else {
     newCompletedDates.push(date);
-    if (task.type === 'goal') {
+    if (task.type === 'goal' || task.type === 'floating_goal') {
       newGoalCompleted = (newGoalCompleted || 0) + 1;
     }
   }
@@ -200,8 +225,16 @@ export const isTaskCompletedToday = (task: Task, date: string): boolean => {
 };
 
 export const isGoalComplete = (task: Task): boolean => {
-  if (task.type !== 'goal') return false;
+  if (task.type !== 'goal' && task.type !== 'floating_goal') return false;
   return (task.goalCompleted || 0) >= (task.goalTarget || 0);
+};
+
+// Calculate days difference between two dates
+const daysDifference = (fromDate: string, toDate: string): number => {
+  const from = new Date(fromDate);
+  const to = new Date(toDate);
+  const diffTime = to.getTime() - from.getTime();
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 };
 
 // Filter tasks for a specific date
@@ -209,13 +242,18 @@ export const filterTasksForDate = (tasks: Task[], date: string): Task[] => {
   const dayOfWeek = new Date(date).getDay();
 
   return tasks.filter(task => {
+    // Skip if this date is in skipped dates
+    if (task.skippedDates?.includes(date)) {
+      return false;
+    }
+
     // Skip completed goals
-    if (task.type === 'goal' && isGoalComplete(task)) {
+    if ((task.type === 'goal' || task.type === 'floating_goal') && isGoalComplete(task)) {
       return false;
     }
 
     // Skip floating tasks (they go in separate block)
-    if (task.type === 'floating') {
+    if (task.type === 'floating' || task.type === 'floating_goal') {
       return false;
     }
 
@@ -230,6 +268,15 @@ export const filterTasksForDate = (tasks: Task[], date: string): Task[] => {
         if (task.toDate && date > task.toDate) return false;
         // If no fromDate set, don't show before createdAt date
         if (!task.fromDate && task.createdAt && date < task.createdAt) return false;
+        
+        // Check interval days
+        if (task.intervalDays && task.intervalDays > 1) {
+          const startDate = task.fromDate || task.createdAt;
+          const daysSinceStart = daysDifference(startDate, date);
+          if (daysSinceStart < 0 || daysSinceStart % task.intervalDays !== 0) {
+            return false;
+          }
+        }
         return true;
       case 'weekly':
         return task.weekdays?.includes(dayOfWeek);
@@ -253,6 +300,38 @@ export const getFloatingTasks = (tasks: Task[]): Task[] => {
   return tasks.filter(task => task.type === 'floating' && !task.completedDates.length);
 };
 
+// Get floating goals (always show until goal completed)
+export const getFloatingGoals = (tasks: Task[]): Task[] => {
+  return tasks.filter(task => task.type === 'floating_goal' && !isGoalComplete(task));
+};
+
+// Get postponed tasks for a specific date (tasks from previous days that weren't completed)
+export const getPostponedTasks = (tasks: Task[], date: string): Task[] => {
+  return tasks.filter(task => {
+    // Only particular tasks can be postponed
+    if (task.type !== 'particular') return false;
+    
+    // Skip if already skipped for this date
+    if (task.skippedDates?.includes(date)) return false;
+    
+    // Task must have a date that's in the past
+    if (!task.date || task.date >= date) return false;
+    
+    // Task must not be completed on its original date
+    if (task.completedDates.includes(task.date)) return false;
+    
+    // Task must not be completed on current date
+    if (task.completedDates.includes(date)) return false;
+    
+    return true;
+  });
+};
+
+// Calculate days since a task was postponed
+export const getDaysPostponed = (taskDate: string, currentDate: string): number => {
+  return daysDifference(taskDate, currentDate);
+};
+
 // Calculate days since creation
 export const getDaysSinceCreation = (createdAt: string): number => {
   const created = new Date(createdAt);
@@ -261,7 +340,12 @@ export const getDaysSinceCreation = (createdAt: string): number => {
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 };
 
-export const getTaskTypeLabel = (type: TaskType): string => {
+export const getTaskTypeLabel = (type: TaskType, intervalDays?: number): string => {
+  // If it's a daily task with interval > 1, show as "Task"
+  if (type === 'daily' && intervalDays && intervalDays > 1) {
+    return 'Task';
+  }
+  
   const labels: Record<TaskType, string> = {
     daily: 'Daily',
     weekly: 'Weekly',
@@ -269,6 +353,7 @@ export const getTaskTypeLabel = (type: TaskType): string => {
     goal: 'Goal',
     floating: 'Floating',
     notify: 'Notify',
+    floating_goal: 'Floating Goal',
   };
   return labels[type];
 };
