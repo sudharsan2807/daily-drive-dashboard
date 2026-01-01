@@ -8,11 +8,13 @@ import { AnalysisReport } from '@/components/AnalysisReport';
 import { TimelineView } from '@/components/TimelineView';
 import { GoalProgress } from '@/components/GoalProgress';
 import { GoalHistory } from '@/components/GoalHistory';
+import { GoalAchievement } from '@/components/GoalAchievement';
 import { EditTaskDialog } from '@/components/EditTaskDialog';
 import { DateSwitcher } from '@/components/DateSwitcher';
 import { FloatingTasksBlock } from '@/components/FloatingTasksBlock';
 import { CompletedTasksBlock } from '@/components/CompletedTasksBlock';
 import { NotifyTasksList } from '@/components/NotifyTasksList';
+import { PostponedTasksBlock } from '@/components/PostponedTasksBlock';
 import { Plus, ListChecks, Loader2, History } from 'lucide-react';
 import { 
   fetchTasks,
@@ -20,6 +22,7 @@ import {
   getTodayISO, 
   toggleTaskCompletion, 
   deleteTask,
+  skipTaskForDate,
   isTaskCompletedToday,
 } from '@/lib/taskStorage';
 import { toast } from 'sonner';
@@ -88,6 +91,16 @@ const Index = () => {
     setTasks(prev => prev.filter(t => t.id !== id));
     setAllTasks(prev => prev.filter(t => t.id !== id));
     toast.success('Task deleted');
+  };
+
+  const handleSkip = async (id: string) => {
+    const task = allTasks.find(t => t.id === id);
+    if (!task) return;
+    
+    const updatedTask = await skipTaskForDate(task, currentDate);
+    setTasks(prev => prev.filter(t => t.id !== id));
+    setAllTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
+    toast.success('Task removed for today');
   };
 
   const handleEdit = (task: Task) => {
@@ -235,6 +248,7 @@ const Index = () => {
                     onDelete={handleDelete}
                     onEdit={handleEdit}
                     onReorder={handleReorder}
+                    onSkip={handleSkip}
                     disableCheckbox={isNotToday}
                   />
                 )}
@@ -242,6 +256,18 @@ const Index = () => {
             </Card>
 
             <TimelineView tasks={tasks} date={currentDate} />
+
+            {/* Postponed Tasks Block - only on today */}
+            {currentDate === today && (
+              <PostponedTasksBlock
+                tasks={allTasks}
+                date={currentDate}
+                onToggle={handleToggle}
+                onSkip={handleSkip}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+              />
+            )}
 
             <FloatingTasksBlock
               tasks={allTasks}
@@ -259,6 +285,7 @@ const Index = () => {
         )}
 
         <GoalProgress tasks={allTasks} />
+        <GoalAchievement tasks={allTasks} />
         <GoalHistory tasks={allTasks} />
       </main>
 

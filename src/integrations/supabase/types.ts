@@ -27,8 +27,10 @@ export type Database = {
           goal_target: number | null
           how_to_do: string | null
           id: string
+          interval_days: number | null
           name: string
           postponed_from: string | null
+          skipped_dates: string[] | null
           sort_order: number | null
           time: string | null
           to_date: string | null
@@ -49,8 +51,10 @@ export type Database = {
           goal_target?: number | null
           how_to_do?: string | null
           id?: string
+          interval_days?: number | null
           name: string
           postponed_from?: string | null
+          skipped_dates?: string[] | null
           sort_order?: number | null
           time?: string | null
           to_date?: string | null
@@ -71,8 +75,10 @@ export type Database = {
           goal_target?: number | null
           how_to_do?: string | null
           id?: string
+          interval_days?: number | null
           name?: string
           postponed_from?: string | null
+          skipped_dates?: string[] | null
           sort_order?: number | null
           time?: string | null
           to_date?: string | null

@@ -3,7 +3,7 @@ import { Task } from '@/types/task';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Trash2, Pencil, AlertTriangle, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
+import { Clock, Trash2, Pencil, AlertTriangle, ChevronDown, ChevronUp, GripVertical, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTaskTypeLabel, isTaskCompletedToday } from '@/lib/taskStorage';
 import { useSortable } from '@dnd-kit/sortable';
@@ -25,14 +25,16 @@ interface TaskCardProps {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
+  onSkip?: (id: string) => void;
   isDragging?: boolean;
   disableCheckbox?: boolean;
 }
 
-export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, isDragging, disableCheckbox = false }: TaskCardProps) => {
+export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, onSkip, isDragging, disableCheckbox = false }: TaskCardProps) => {
   const [showDescription, setShowDescription] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showSkipDialog, setShowSkipDialog] = useState(false);
   const isCompleted = isTaskCompletedToday(task, date);
   const isCheckboxDisabled = disableCheckbox && !isCompleted;
   const isCarried = !!task.carriedFrom;
@@ -58,17 +60,19 @@ export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, isDragging, d
       case 'particular': return 'task-particular';
       case 'goal': return 'task-goal';
       case 'notify': return 'bg-purple-500/10 border-purple-500/30';
+      case 'floating_goal': return 'task-goal';
       default: return '';
     }
   };
 
   const getBadgeClass = () => {
     switch (task.type) {
-      case 'daily': return 'badge-daily';
+      case 'daily': return task.intervalDays && task.intervalDays > 1 ? 'bg-secondary text-secondary-foreground' : 'badge-daily';
       case 'weekly': return 'badge-weekly';
       case 'particular': return 'badge-particular';
       case 'goal': return 'badge-goal';
       case 'notify': return 'bg-purple-500 text-white';
+      case 'floating_goal': return 'badge-goal';
       default: return '';
     }
   };
@@ -84,11 +88,26 @@ export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, isDragging, d
     setShowDeleteDialog(true);
   };
 
+  const handleSkipClick = () => {
+    setShowSkipDialog(true);
+  };
+
   const handleConfirmDelete = () => {
     onDelete(task.id);
     setShowDeleteDialog(false);
     setShowActions(false);
   };
+
+  const handleConfirmSkip = () => {
+    if (onSkip) {
+      onSkip(task.id);
+    }
+    setShowSkipDialog(false);
+    setShowActions(false);
+  };
+
+  // Determine if skip button should show (for daily/weekly/goal tasks - not particular)
+  const canSkip = onSkip && task.type !== 'particular' && task.type !== 'floating' && task.type !== 'floating_goal';
 
   return (
     <>
@@ -134,7 +153,7 @@ export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, isDragging, d
                 {task.name}
               </h3>
               <Badge className={cn('text-xs', getBadgeClass())}>
-                {getTaskTypeLabel(task.type)}
+                {getTaskTypeLabel(task.type, task.intervalDays)}
               </Badge>
               {isCarried && (
                 <Badge variant="destructive" className="text-xs flex items-center gap-1">
@@ -169,6 +188,21 @@ export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, isDragging, d
             )}
           </div>
           
+          {/* Skip button (X) - always visible for eligible tasks */}
+          {canSkip && !isCompleted && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-orange-500 h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSkipClick();
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+
           {showActions && (
             <div className="flex items-center gap-1 animate-fade-in">
               <Button
@@ -199,6 +233,7 @@ export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, isDragging, d
         </div>
       </div>
 
+      {/* Delete Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -211,6 +246,24 @@ export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, isDragging, d
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Skip Dialog */}
+      <AlertDialog open={showSkipDialog} onOpenChange={setShowSkipDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Task for Today</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove "{task.name}" from today only? The task will still appear on other scheduled days.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSkip} className="bg-orange-500 hover:bg-orange-600">
+              Remove for Today
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

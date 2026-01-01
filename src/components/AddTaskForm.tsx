@@ -27,12 +27,13 @@ export const AddTaskForm = () => {
   const [toDate, setToDate] = useState('');
   const [goalTarget, setGoalTarget] = useState('');
   const [howToDo, setHowToDo] = useState('');
+  const [intervalDays, setIntervalDays] = useState('1');
   const [submitting, setSubmitting] = useState(false);
 
   // Check for type param in URL
   useEffect(() => {
     const typeParam = searchParams.get('type');
-    if (typeParam && ['daily', 'weekly', 'particular', 'goal', 'floating', 'notify'].includes(typeParam)) {
+    if (typeParam && ['daily', 'weekly', 'particular', 'goal', 'floating', 'notify', 'floating_goal'].includes(typeParam)) {
       setType(typeParam as TaskType);
     }
   }, [searchParams]);
@@ -61,7 +62,7 @@ export const AddTaskForm = () => {
       return;
     }
 
-    if (type === 'goal' && (!goalTarget || parseInt(goalTarget) <= 0)) {
+    if ((type === 'goal' || type === 'floating_goal') && (!goalTarget || parseInt(goalTarget) <= 0)) {
       toast.error('Please enter a valid goal target');
       return;
     }
@@ -69,7 +70,7 @@ export const AddTaskForm = () => {
     setSubmitting(true);
 
     // Calculate goal target from date range if both dates are provided
-    let calculatedGoalTarget = type === 'goal' ? parseInt(goalTarget) : undefined;
+    let calculatedGoalTarget = (type === 'goal' || type === 'floating_goal') ? parseInt(goalTarget) : undefined;
     let taskType = type;
     
     // Use today's date as default if fromDate not entered for daily tasks
@@ -79,19 +80,23 @@ export const AddTaskForm = () => {
     if (type === 'daily' && effectiveFromDate && toDate) {
       calculatedGoalTarget = calculateDateGap(effectiveFromDate, toDate);
     }
+
+    // Parse interval days
+    const parsedIntervalDays = type === 'daily' ? parseInt(intervalDays) || 1 : undefined;
     
     const result = await addTask({
       name: name.trim(),
       type: taskType,
       description: description.trim() || undefined,
-      time: type !== 'floating' ? time || undefined : undefined,
+      time: type !== 'floating' && type !== 'floating_goal' ? time || undefined : undefined,
       weekdays: type === 'weekly' ? selectedWeekdays : undefined,
       exceptDays: type === 'daily' && exceptDays.length > 0 ? exceptDays : undefined,
       date: type === 'particular' ? date : undefined,
       fromDate: effectiveFromDate,
       toDate: type === 'daily' && toDate ? toDate : undefined,
       goalTarget: calculatedGoalTarget,
-      howToDo: type === 'goal' ? howToDo.trim() || undefined : undefined,
+      howToDo: (type === 'goal' || type === 'floating_goal') ? howToDo.trim() || undefined : undefined,
+      intervalDays: parsedIntervalDays,
     });
 
     if (result) {
@@ -181,6 +186,12 @@ export const AddTaskForm = () => {
                         Floating Task
                       </span>
                     </SelectItem>
+                    <SelectItem value="floating_goal">
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        Floating Goal
+                      </span>
+                    </SelectItem>
                     <SelectItem value="notify">
                       <span className="flex items-center gap-2">
                         <span className="h-2 w-2 rounded-full bg-purple-500" />
@@ -192,12 +203,12 @@ export const AddTaskForm = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">{type === 'goal' ? 'Goal Name *' : 'Task Name *'}</Label>
+                <Label htmlFor="name">{(type === 'goal' || type === 'floating_goal') ? 'Goal Name *' : 'Task Name *'}</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder={type === 'goal' ? 'Enter goal name' : 'Enter task name'}
+                  placeholder={(type === 'goal' || type === 'floating_goal') ? 'Enter goal name' : 'Enter task name'}
                   className="text-base"
                 />
               </div>
@@ -215,7 +226,7 @@ export const AddTaskForm = () => {
                 />
               </div>
 
-              {(type !== 'floating') && (
+              {(type !== 'floating' && type !== 'floating_goal') && (
                 <div className="space-y-2">
                   <Label htmlFor="time">{type === 'notify' ? 'Notification Time *' : 'End Time (Optional)'}</Label>
                   <Input
@@ -245,6 +256,24 @@ export const AddTaskForm = () => {
 
               {type === 'daily' && (
                 <div className="space-y-4">
+                  {/* Interval Days Input */}
+                  <div className="space-y-2">
+                    <Label htmlFor="intervalDays">Repeat Every X Days</Label>
+                    <Input
+                      id="intervalDays"
+                      type="number"
+                      value={intervalDays}
+                      onChange={(e) => setIntervalDays(e.target.value)}
+                      min="1"
+                      max="30"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {parseInt(intervalDays) === 1 
+                        ? 'Task will appear every day' 
+                        : `Task will appear every ${intervalDays} days (shown as "Task" label)`}
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="fromDate">From Date (Optional)</Label>
@@ -349,7 +378,7 @@ export const AddTaskForm = () => {
                 </div>
               )}
 
-              {type === 'goal' && (
+              {(type === 'goal' || type === 'floating_goal') && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="goalTarget">Goal Target (Sessions) *</Label>
