@@ -191,12 +191,18 @@ export const toggleTaskCompletion = async (task: Task, date: string): Promise<Ta
 
   if (newCompletedDates.includes(date)) {
     newCompletedDates = newCompletedDates.filter(d => d !== date);
+    // Decrement goal progress for goal types and daily tasks with date range
     if ((task.type === 'goal' || task.type === 'floating_goal') && newGoalCompleted !== undefined && newGoalCompleted > 0) {
+      newGoalCompleted--;
+    } else if (task.type === 'daily' && task.fromDate && task.toDate && task.goalTarget && newGoalCompleted !== undefined && newGoalCompleted > 0) {
       newGoalCompleted--;
     }
   } else {
     newCompletedDates.push(date);
+    // Increment goal progress for goal types and daily tasks with date range
     if (task.type === 'goal' || task.type === 'floating_goal') {
+      newGoalCompleted = (newGoalCompleted || 0) + 1;
+    } else if (task.type === 'daily' && task.fromDate && task.toDate && task.goalTarget) {
       newGoalCompleted = (newGoalCompleted || 0) + 1;
     }
   }

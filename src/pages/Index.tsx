@@ -14,7 +14,6 @@ import { DateSwitcher } from '@/components/DateSwitcher';
 import { FloatingTasksBlock } from '@/components/FloatingTasksBlock';
 import { CompletedTasksBlock } from '@/components/CompletedTasksBlock';
 import { NotifyTasksList } from '@/components/NotifyTasksList';
-import { PostponedTasksBlock } from '@/components/PostponedTasksBlock';
 import { Plus, ListChecks, Loader2, History } from 'lucide-react';
 import { 
   fetchTasks,
@@ -24,6 +23,8 @@ import {
   deleteTask,
   skipTaskForDate,
   isTaskCompletedToday,
+  getPostponedTasks,
+  getDaysPostponed,
 } from '@/lib/taskStorage';
 import { toast } from 'sonner';
 import { useTaskNotifications } from '@/hooks/useTaskNotifications';
@@ -126,14 +127,23 @@ const Index = () => {
   // For current/future dates: show incomplete (pending) first
   const today = getTodayISO();
   const isPastDate = currentDate < today;
-  const isFutureDate = currentDate > today;
   const isNotToday = currentDate !== today;
   
   const completedTasks = tasks.filter(t => isTaskCompletedToday(t, currentDate));
   const pendingTasks = tasks.filter(t => !isTaskCompletedToday(t, currentDate));
   
-  // For past dates, reorder to show completed first
-  const orderedTasks = isPastDate ? [...completedTasks, ...pendingTasks] : tasks;
+  // Get postponed tasks for today - integrate into main task block
+  const postponedTasks = currentDate === today ? getPostponedTasks(allTasks, currentDate) : [];
+  
+  // Add postponed info to tasks for display
+  const pendingWithPostponed = [
+    ...pendingTasks,
+    ...postponedTasks.map(task => ({
+      ...task,
+      _isPostponed: true,
+      _daysPostponed: getDaysPostponed(task.date!, currentDate),
+    })),
+  ];
 
   if (loading) {
     return (
@@ -223,12 +233,12 @@ const Index = () => {
                 <CardTitle className="text-lg flex items-center gap-2">
                   📅 Tasks
                   <span className="text-sm font-normal text-muted-foreground">
-                    ({pendingTasks.length} pending)
+                    ({pendingWithPostponed.length} pending)
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {pendingTasks.length === 0 ? (
+                {pendingWithPostponed.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <ListChecks className="h-12 w-12 mx-auto mb-3 opacity-30" />
                     <p>No pending tasks</p>
@@ -242,7 +252,7 @@ const Index = () => {
                   </div>
                 ) : (
                   <SortableTaskList
-                    tasks={pendingTasks}
+                    tasks={pendingWithPostponed as Task[]}
                     date={currentDate}
                     onToggle={handleToggle}
                     onDelete={handleDelete}
@@ -256,18 +266,6 @@ const Index = () => {
             </Card>
 
             <TimelineView tasks={tasks} date={currentDate} />
-
-            {/* Postponed Tasks Block - only on today */}
-            {currentDate === today && (
-              <PostponedTasksBlock
-                tasks={allTasks}
-                date={currentDate}
-                onToggle={handleToggle}
-                onSkip={handleSkip}
-                onDelete={handleDelete}
-                onEdit={handleEdit}
-              />
-            )}
 
             <FloatingTasksBlock
               tasks={allTasks}
