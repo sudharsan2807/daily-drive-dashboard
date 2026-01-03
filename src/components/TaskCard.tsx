@@ -106,8 +106,10 @@ export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, onSkip, isDra
     setShowActions(false);
   };
 
-  // Determine if skip button should show (for daily/weekly/goal tasks - not particular)
-  const canSkip = onSkip && task.type !== 'particular' && task.type !== 'floating' && task.type !== 'floating_goal';
+  // Determine if skip button should show (for all tasks except floating)
+  // Postponed tasks (particular from previous days) should also be skippable
+  const isPostponed = (task as any)._isPostponed;
+  const canSkip = onSkip && task.type !== 'floating' && task.type !== 'floating_goal';
 
   return (
     <>
@@ -155,6 +157,12 @@ export const TaskCard = ({ task, date, onToggle, onDelete, onEdit, onSkip, isDra
               <Badge className={cn('text-xs', getBadgeClass())}>
                 {getTaskTypeLabel(task.type, task.intervalDays)}
               </Badge>
+              {/* Show postponed label if task has _isPostponed flag */}
+              {(task as any)._isPostponed && (
+                <Badge variant="outline" className="text-xs text-orange-600 border-orange-500/30">
+                  postponed {(task as any)._daysPostponed} day{(task as any)._daysPostponed !== 1 ? 's' : ''} ago
+                </Badge>
+              )}
               {isCarried && (
                 <Badge variant="destructive" className="text-xs flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />

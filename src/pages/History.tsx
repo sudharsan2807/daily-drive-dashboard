@@ -6,8 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Calendar, CheckCircle2, Clock, ListTodo, Search, Pencil, Trash2 } from 'lucide-react';
-import { fetchTasks, getTaskTypeLabel, deleteTask } from '@/lib/taskStorage';
+import { ArrowLeft, Calendar, CheckCircle2, Clock, ListTodo, Search, Pencil, Trash2, Undo2 } from 'lucide-react';
+import { fetchTasks, getTaskTypeLabel, deleteTask, updateTask } from '@/lib/taskStorage';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -33,6 +33,8 @@ const History = () => {
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
+  const [undoDialogOpen, setUndoDialogOpen] = useState(false);
+  const [taskToUndo, setTaskToUndo] = useState<Task | null>(null);
 
   useEffect(() => {
     loadTasks();
@@ -66,6 +68,7 @@ const History = () => {
       case 'particular': return 'badge-particular';
       case 'goal': return 'badge-goal';
       case 'floating': return 'bg-floating text-floating-foreground';
+      case 'floating_goal': return 'badge-goal';
       case 'notify': return 'bg-purple-500 text-white';
       default: return '';
     }
@@ -121,6 +124,41 @@ const History = () => {
 
   const handleTaskUpdated = (updatedTask: Task) => {
     setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+  };
+
+  const handleUndoClick = (task: Task) => {
+    setTaskToUndo(task);
+    setUndoDialogOpen(true);
+  };
+
+  const handleConfirmUndo = async () => {
+    if (taskToUndo && taskToUndo.completedDates.length > 0) {
+      // Remove the last completion date to "undo" the completion
+      const newCompletedDates = [...taskToUndo.completedDates];
+      newCompletedDates.pop();
+      
+      // Also decrement goalCompleted if it's a goal type
+      let newGoalCompleted = taskToUndo.goalCompleted;
+      if ((taskToUndo.type === 'goal' || taskToUndo.type === 'floating_goal') && newGoalCompleted && newGoalCompleted > 0) {
+        newGoalCompleted--;
+      }
+      
+      await updateTask(taskToUndo.id, { 
+        completedDates: newCompletedDates,
+        goalCompleted: newGoalCompleted,
+      });
+      
+      setTasks(prev => prev.map(t => 
+        t.id === taskToUndo.id 
+          ? { ...t, completedDates: newCompletedDates, goalCompleted: newGoalCompleted }
+          : t
+      ));
+      
+      toast.success('Last completion undone');
+      setUndoDialogOpen(false);
+      setTaskToUndo(null);
+      setActiveTaskId(null);
+    }
   };
 
   return (
@@ -223,6 +261,20 @@ const History = () => {
                       
                       {activeTaskId === task.id && (
                         <div className="flex items-center gap-1 animate-fade-in">
+                          {task.completedDates.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-orange-500"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUndoClick(task);
+                              }}
+                              title="Undo last completion"
+                            >
+                              <Undo2 className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -268,6 +320,28 @@ const History = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={undoDialogOpen} onOpenChange={setUndoDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Undo Last Completion</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove the last completion for "{taskToUndo?.name}"? 
+              {taskToUndo?.completedDates.length && (
+                <span className="block mt-1 text-sm">
+                  Last completed: {formatDate(taskToUndo.completedDates[taskToUndo.completedDates.length - 1])}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmUndo} className="bg-orange-500 hover:bg-orange-600">
+              Undo Completion
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

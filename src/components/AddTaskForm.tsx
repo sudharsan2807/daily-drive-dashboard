@@ -62,7 +62,8 @@ export const AddTaskForm = () => {
       return;
     }
 
-    if ((type === 'goal' || type === 'floating_goal') && (!goalTarget || parseInt(goalTarget) <= 0)) {
+    // Only require goal target for goal type, not floating_goal
+    if (type === 'goal' && (!goalTarget || parseInt(goalTarget) <= 0)) {
       toast.error('Please enter a valid goal target');
       return;
     }
@@ -70,7 +71,8 @@ export const AddTaskForm = () => {
     setSubmitting(true);
 
     // Calculate goal target from date range if both dates are provided
-    let calculatedGoalTarget = (type === 'goal' || type === 'floating_goal') ? parseInt(goalTarget) : undefined;
+    // floating_goal doesn't need a goal target
+    let calculatedGoalTarget = type === 'goal' ? parseInt(goalTarget) : undefined;
     let taskType = type;
     
     // Use today's date as default if fromDate not entered for daily tasks
@@ -378,7 +380,7 @@ export const AddTaskForm = () => {
                 </div>
               )}
 
-              {(type === 'goal' || type === 'floating_goal') && (
+              {type === 'goal' && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="goalTarget">Goal Target (Sessions) *</Label>
@@ -402,6 +404,19 @@ export const AddTaskForm = () => {
                     />
                   </div>
                 </>
+              )}
+              
+              {type === 'floating_goal' && (
+                <div className="space-y-2">
+                  <Label htmlFor="howToDo">How to do? (Optional)</Label>
+                  <Textarea
+                    id="howToDo"
+                    value={howToDo}
+                    onChange={(e) => setHowToDo(e.target.value)}
+                    placeholder="Describe the steps or approach..."
+                    rows={3}
+                  />
+                </div>
               )}
 
               <Button type="submit" className="w-full" size="lg" disabled={submitting}>
