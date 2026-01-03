@@ -153,8 +153,27 @@ export const calculateDateGap = (fromDate: string, toDate: string): number => {
   return diffDays + 1; // Include both start and end dates
 };
 
-// Delete a task
+// Delete a task and store it for potential restoration
 export const deleteTask = async (id: string): Promise<void> => {
+  // First, fetch the task to store it
+  const { data: taskData } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (taskData) {
+    // Store in localStorage for undo capability
+    const deletedTasks = getDeletedTasks();
+    const deletedTask: DeletedTask = {
+      task: rowToTask(taskData),
+      deletedAt: new Date().toISOString(),
+    };
+    deletedTasks.unshift(deletedTask);
+    // Keep only last 50 deleted tasks
+    localStorage.setItem('deletedTasks', JSON.stringify(deletedTasks.slice(0, 50)));
+  }
+
   const { error } = await supabase
     .from('tasks')
     .delete()
@@ -163,6 +182,68 @@ export const deleteTask = async (id: string): Promise<void> => {
   if (error) {
     console.error('Error deleting task:', error);
   }
+};
+
+// Deleted task type for storage
+export interface DeletedTask {
+  task: Task;
+  deletedAt: string;
+}
+
+// Get deleted tasks from localStorage
+export const getDeletedTasks = (): DeletedTask[] => {
+  const stored = localStorage.getItem('deletedTasks');
+  return stored ? JSON.parse(stored) : [];
+};
+
+// Remove a task from deleted tasks list
+export const removeFromDeletedTasks = (taskId: string): void => {
+  const deletedTasks = getDeletedTasks();
+  const filtered = deletedTasks.filter(d => d.task.id !== taskId);
+  localStorage.setItem('deletedTasks', JSON.stringify(filtered));
+};
+
+// Restore a deleted task
+export const restoreTask = async (task: Task): Promise<Task | null> => {
+  // Get the max sort_order to add restored task at the end
+  const { data: maxData } = await supabase
+    .from('tasks')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1);
+  
+  const maxSortOrder = maxData && maxData.length > 0 ? (maxData[0].sort_order || 0) : 0;
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert({
+      name: task.name,
+      type: task.type,
+      description: task.description || null,
+      time: task.time || null,
+      weekdays: task.weekdays || null,
+      except_days: task.exceptDays || null,
+      date: task.date || null,
+      from_date: task.fromDate || null,
+      to_date: task.toDate || null,
+      goal_target: task.goalTarget || null,
+      goal_completed: task.goalCompleted || null,
+      how_to_do: task.howToDo || null,
+      completed_dates: task.completedDates || [],
+      sort_order: maxSortOrder + 1,
+      day_count: task.dayCount || 0,
+      interval_days: task.intervalDays || 1,
+      skipped_dates: task.skippedDates || [],
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error restoring task:', error);
+    return null;
+  }
+
+  return rowToTask(data);
 };
 
 // Skip a task for a specific date (remove for today only)

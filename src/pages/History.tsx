@@ -6,8 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Calendar, CheckCircle2, Clock, ListTodo, Search, Pencil, Trash2, Undo2 } from 'lucide-react';
-import { fetchTasks, getTaskTypeLabel, deleteTask, updateTask } from '@/lib/taskStorage';
+import { ArrowLeft, Calendar, CheckCircle2, Clock, ListTodo, Search, Pencil, Trash2, Undo2, History as HistoryIcon } from 'lucide-react';
+import { fetchTasks, getTaskTypeLabel, deleteTask, updateTask, restoreTask, getDeletedTasks, DeletedTask, removeFromDeletedTasks } from '@/lib/taskStorage';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -25,8 +25,9 @@ import { EditTaskDialog } from '@/components/EditTaskDialog';
 const History = () => {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [deletedTasks, setDeletedTasks] = useState<DeletedTask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'entered' | 'completed'>('all');
+  const [filter, setFilter] = useState<'all' | 'entered' | 'completed' | 'actions'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -35,9 +36,12 @@ const History = () => {
   const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
   const [undoDialogOpen, setUndoDialogOpen] = useState(false);
   const [taskToUndo, setTaskToUndo] = useState<Task | null>(null);
+  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+  const [taskToRestore, setTaskToRestore] = useState<DeletedTask | null>(null);
 
   useEffect(() => {
     loadTasks();
+    loadDeletedTasks();
   }, []);
 
   const loadTasks = async () => {
@@ -45,6 +49,11 @@ const History = () => {
     const allTasks = await fetchTasks();
     setTasks(allTasks);
     setLoading(false);
+  };
+
+  const loadDeletedTasks = () => {
+    const deleted = getDeletedTasks();
+    setDeletedTasks(deleted);
   };
 
   // Get all entered tasks (sorted by created date, recent first)
@@ -161,6 +170,31 @@ const History = () => {
     }
   };
 
+  const handleRestoreClick = (deletedTask: DeletedTask) => {
+    setTaskToRestore(deletedTask);
+    setRestoreDialogOpen(true);
+  };
+
+  const handleConfirmRestore = async () => {
+    if (taskToRestore) {
+      const restoredTask = await restoreTask(taskToRestore.task);
+      if (restoredTask) {
+        setTasks(prev => [...prev, restoredTask]);
+        removeFromDeletedTasks(taskToRestore.task.id);
+        setDeletedTasks(prev => prev.filter(d => d.task.id !== taskToRestore.task.id));
+        toast.success('Task restored');
+      }
+      setRestoreDialogOpen(false);
+      setTaskToRestore(null);
+    }
+  };
+
+  const handlePermanentDelete = (deletedTask: DeletedTask) => {
+    removeFromDeletedTasks(deletedTask.task.id);
+    setDeletedTasks(prev => prev.filter(d => d.task.id !== deletedTask.task.id));
+    toast.success('Permanently removed from history');
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
@@ -186,8 +220,8 @@ const History = () => {
           />
         </div>
 
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as 'all' | 'entered' | 'completed')}>
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as 'all' | 'entered' | 'completed' | 'actions')}>
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="all" className="flex items-center gap-2">
               <ListTodo className="h-4 w-4" />
               All
@@ -200,9 +234,69 @@ const History = () => {
               <CheckCircle2 className="h-4 w-4" />
               Completed
             </TabsTrigger>
+            <TabsTrigger value="actions" className="flex items-center gap-2">
+              <HistoryIcon className="h-4 w-4" />
+              Actions
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={filter} className="space-y-3">
+          <TabsContent value="actions" className="space-y-3">
+            {deletedTasks.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No deleted tasks to restore
+              </div>
+            ) : (
+              deletedTasks.map(deletedTask => (
+                <Card key={deletedTask.task.id} className="animate-fade-in">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <h3 className="font-semibold text-foreground">{deletedTask.task.name}</h3>
+                          <Badge className={cn('text-xs', getBadgeClass(deletedTask.task.type))}>
+                            {getTaskTypeLabel(deletedTask.task.type)}
+                          </Badge>
+                          <Badge variant="destructive" className="text-xs">
+                            Deleted
+                          </Badge>
+                        </div>
+                        
+                        <div className="text-xs text-muted-foreground space-y-1 mt-2">
+                          <div className="flex items-center gap-1">
+                            <Trash2 className="h-3 w-3" />
+                            Deleted: {formatDate(deletedTask.deletedAt)}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-green-500"
+                          onClick={() => handleRestoreClick(deletedTask)}
+                          title="Restore task"
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => handlePermanentDelete(deletedTask)}
+                          title="Remove permanently"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value={filter === 'actions' ? 'none' : filter} className="space-y-3">
             {loading ? (
               <div className="text-center py-8 text-muted-foreground">Loading...</div>
             ) : filteredTasks.length === 0 ? (
@@ -342,6 +436,23 @@ const History = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmUndo} className="bg-orange-500 hover:bg-orange-600">
               Undo Completion
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={restoreDialogOpen} onOpenChange={setRestoreDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Restore "{taskToRestore?.task.name}" to your task list?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRestore} className="bg-green-500 hover:bg-green-600">
+              Restore
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
